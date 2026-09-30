@@ -1,0 +1,6 @@
+node_modules/
+dist/
+demo-dist/
+__pycache__/
+*.egg-info/
+.qa/

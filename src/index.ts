@@ -1,0 +1,10 @@
+export { SiliconDevineViewer } from './render/viewer';
+export type { ViewerOptions, ViewerStats } from './render/viewer';
+export { defineModel, ModelBuilder } from './core/builder';
+export { compileDescription } from './core/description';
+export type { ModelDescription } from './core/description';
+export { validateModel, numel, valueAt, coordinates, flatIndex, topologicalNodes } from './core/model';
+export type { Model, Tensor, Operation, Dimension } from './core/model';
+export { registerOperator, operatorVisual } from './core/operators';
+export type { OperatorVisual, Dependency } from './core/operators';
+export { numericPalette } from './render/numericPaletteTokens';

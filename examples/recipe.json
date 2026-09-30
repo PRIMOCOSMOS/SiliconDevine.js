@@ -1,0 +1,10 @@
+{
+  "format": "silicondevine-recipe", "version": 1,
+  "name": "声明式编码器", "seed": 42,
+  "input": {"name": "features", "shape": [2, 16]},
+  "layers": [
+    {"name": "encoder", "type": "linear", "outFeatures": 8},
+    {"name": "activation", "type": "gelu"},
+    {"name": "latent", "type": "linear", "outFeatures": 4}
+  ]
+}
