@@ -6,6 +6,39 @@
     "backend": "pytorch-fx",
     "version": "2.9.0+cpu"
   },
+  "constraints": {},
+  "modules": [
+    {
+      "path": "0",
+      "type": "Conv3d",
+      "qualified": "torch.nn.modules.conv.Conv3d",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\conv.py",
+        "line": 551,
+        "sha256": "eacee595f8bc5673c621dddc84793d7eb855cad7c02730191cae3c834d98e4bf"
+      }
+    },
+    {
+      "path": "1",
+      "type": "ReLU",
+      "qualified": "torch.nn.modules.activation.ReLU",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\activation.py",
+        "line": 105,
+        "sha256": "79bd206f7f00ce55d05d7aaa86d19e307d5b53267af519391931b4af92f1408c"
+      }
+    },
+    {
+      "path": "2",
+      "type": "Conv3d",
+      "qualified": "torch.nn.modules.conv.Conv3d",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\conv.py",
+        "line": 551,
+        "sha256": "eacee595f8bc5673c621dddc84793d7eb855cad7c02730191cae3c834d98e4bf"
+      }
+    }
+  ],
   "tensors": [
     {
       "id": "input_1",
@@ -99,7 +132,8 @@
         "min": -2.701582431793213,
         "max": 2.092864751815796,
         "absmax": 2.701582431793213
-      }
+      },
+      "spatialRank": 3
     },
     {
       "id": "_0",
@@ -257,7 +291,8 @@
         "min": -0.9291576147079468,
         "max": 1.1061869859695435,
         "absmax": 1.1061869859695435
-      }
+      },
+      "spatialRank": 3
     },
     {
       "id": "parameter:0.weight",
@@ -523,7 +558,8 @@
         "min": 0.0,
         "max": 1.1061869859695435,
         "absmax": 1.1061869859695435
-      }
+      },
+      "spatialRank": 3
     },
     {
       "id": "_2",
@@ -681,7 +717,8 @@
         "min": -0.3884529173374176,
         "max": 0.4812079668045044,
         "absmax": 0.4812079668045044
-      }
+      },
+      "spatialRank": 3
     },
     {
       "id": "parameter:2.weight",
@@ -883,6 +920,11 @@
           3,
           3,
           3
+        ],
+        "output_padding": [
+          0,
+          0,
+          0
         ]
       },
       "group": "0",
@@ -939,6 +981,11 @@
           3,
           3,
           3
+        ],
+        "output_padding": [
+          0,
+          0,
+          0
         ]
       },
       "group": "2",
@@ -955,5 +1002,6 @@
     "Eval-mode forward graph for the supplied inputs; no backward graph or unexecuted control-flow branches.",
     "Stored values are contiguous windows. Statistics describe stored values, not the entire tensor.",
     "Unknown operators preserve topology and captured tensors; internal math is not invented."
-  ]
+  ],
+  "functionalUnits": []
 }

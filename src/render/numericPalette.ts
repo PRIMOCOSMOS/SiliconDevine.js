@@ -1,6 +1,6 @@
 import { Color } from 'three';
-import { numericPalette } from './numericPaletteTokens';
-export { numericPalette } from './numericPaletteTokens';
+import { numericPalette } from './numericPaletteTokens.js';
+export { numericPalette } from './numericPaletteTokens.js';
 /** Signed scientific colour scale. State and topology never change its meaning. */
 const colors = Object.fromEntries(Object.entries(numericPalette).map(([key, value]) => [key, new Color(value)])) as Record<keyof typeof numericPalette, Color>;
 export const valueExtent = (values: readonly number[]) => values.reduce((m, v) => Number.isFinite(v) ? Math.max(m, Math.abs(v)) : m, 0) || 1;

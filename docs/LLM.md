@@ -1,0 +1,43 @@
+# TinyGPT 与 LLaMA-style 可视化
+
+## 直接使用
+
+双击 start-app.cmd，在「选择示例」中选择 TinyGPT 或 LLaMA-style，再启动。它会自动填写模型文件、工厂函数和 export 接口。也可直接在网页「模型来源」选择已导出的模型。
+
+IDE 源码：examples/llm_models.py。工厂 build_tinygpt / build_llama 返回原生 nn.Module 和示例 token。可修改 Config 的 width、heads、kv_heads、layers、hidden、vocab、context，以及工厂输入。width 必须可被 heads 整除；RoPE head dimension 必须为偶数；heads 必须可被 kv_heads 整除。
+
+默认是 2 个 Decoder Block、宽度 16、4 个 Query Head、FFN 32、词表 32、输入 B=1/T=6。LLaMA-style 使用 2 个 KV Head。都是可实际运行的随机初始化架构测试，不含预训练语言能力。
+
+## 结构
+
+- TinyGPT：token / learned position embedding、Pre-LayerNorm、QKV 投影、causal SDPA、输出投影、残差、GELU MLP、最终 LayerNorm、与 token embedding 共享权重的 LM head。
+- LLaMA-style：token embedding、Pre-RMSNorm、独立 Q/K/V、相邻偶奇分量 RoPE、GQA、因果注意力、输出投影与残差、SwiGLU（SiLU(gate) × up → down）、最终 RMSNorm 与 LM head。
+- RoPE 使用实数配对旋转，与 Meta 相邻复数对表示数值等价；没有把偶/奇位置或旋转参数近似为装饰图标。
+
+设计依据：[nanoGPT 作者实现](https://github.com/karpathy/nanoGPT/blob/master/model.py)、[Meta LLaMA 实现](https://github.com/meta-llama/llama/blob/main/llama/model.py)、[PyTorch 2.9 SDPA](https://docs.pytorch.org/docs/2.9/generated/torch.nn.functional.scaled_dot_product_attention.html)、[RMSNorm](https://docs.pytorch.org/docs/2.9/generated/torch.nn.RMSNorm.html)。示例是独立编写的缩小实现，不是下载官方权重或声称复现特定发布版本。
+
+## 查看方式
+
+功能架构保留真实边界张量，折叠原生模块的内部算子。点击 Block 查看 Norm、Attention、FFN、残差；继续点击 Attention / RoPE / FFN，或切换「算子细节」。计算图索引只列当前视图，不把所有底层节点一次塞进导航栏。
+
+因果矩阵中被屏蔽坐标用 × 标出，值为 −∞，Softmax 后对应概率为 0。完全屏蔽行按 SDPA 语义得到全零输出。B/H/Q/K 轴标注明确区分批次、head、query 位置和 key 位置。大张量仍采用真实坐标窗口，窗口并不表示原张量只有这么少的元素。
+
+复杂区域只创建一份当前计算的连线；悬停立即接管，点击深入。QKV chunk 的多个输出均有真实连接，自动演示轮转输出。W 水晶与权重线仍同步；并行分支为权重矩阵预留横向空间。热更新保留镜头、模块路径和显示层级。
+
+## 验证和限制
+
+10 份 LLM/SDPA/集合注意力图、44617 个标量结果及全部依赖坐标通过检查；B=1/T=6 和 B=2/T=3，含因果性、GQA、非方阵注意力、布尔/加性 mask、全屏蔽行、共享权重和 RoPE 配对范数。完整模型输出与原生 PyTorch 对照，容差 3e-6；标量跨 JS/PyTorch 容差 2e-5。
+
+注意力分数超过 262144 项保留融合边界，避免为可视化分配巨型 scores；非零 attention dropout 不展开。当前不含 tokenizer、KV-cache 增量解码、训练反向图、预训练权重加载服务，也不代表 Hugging Face 所有架构自动完整支持。
+
+复现：npm run examples；npm test；npm run build；启动 serve.py --port 5184 后执行 npm run test:llm:browser（需要 Playwright）。
+
+## SAB / ISAB 与计算机制
+
+启动器与网页均可选择 SAB、ISAB。源码 examples/set_attention.py；build_sab / build_isab 为原生 PyTorch 工厂。默认 N=6、宽度16、4个head；ISAB 使用 m=3 个可学习诱导点。示例采用带 LayerNorm 的 MAB，独立实现与作者 split/bmm 形式对照过数值；不是训练好的集合模型。
+
+SAB 为 MAB(X,X)，ISAB 为 H=MAB(I,X) 后 MAB(X,H)。两次注意力的概率矩阵分别是 [B,H,m,N] 与 [B,H,N,m]，并保留真实 Q/K/V 投影、归一化缩放/偏置、FFN 和可学习诱导点。遵循[作者实现](https://github.com/juho-lee/set_transformer/blob/master/modules.py)的 1/sqrt(dim_V) 缩放，不把它误换为标准 SDPA 默认的 1/sqrt(head_dim)。集合置换等变性和两阶段输出均通过测试。
+
+功能架构只合并纯坐标变换（reshape/transpose/chunk 等），每条连接仍可追溯至原始元素；点击坐标单元或切到算子细节可查看捕获图。Norm 不拆为均值、减法、除法的一串额外楼层。其行元素沿输入到输出位置连续移动并按数值着色；过渡颜色是视觉插值，只有端点表示实际捕获的张量数值。概率柱高度直接使用真实概率；掩码后的零概率不绘柱。门控和残差展示对应输入向输出坐标汇合。窗口之外的元素没有伪造或删改，仍在 IR / 本地快照中。
+
+新增动效使用两组复用的实例化网格，每组最多64个对象，只更新当前区域。Softmax 概率行机制目前覆盖最后一轴；其他轴仍使用真实依赖连线。Norm 的统计值按完整归一化维度计算，渲染遵循当前坐标窗口。浏览器机制测试：node tests/browser-mechanism.mjs。

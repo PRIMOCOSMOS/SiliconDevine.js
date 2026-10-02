@@ -30,7 +30,7 @@ class ExporterTests(unittest.TestCase):
     def test_tuple_and_unknown_operation(self):
         class Custom(nn.Module):
             def forward(self,x):
-                return {'a':torch.sin(x), 'b':x+1}
+                return {'a':torch.log(x), 'b':x+1}
         out=export_model(Custom(),torch.ones(2,3),include_values=True)
         self.assertEqual(len(out['outputs']),2)
         self.assertTrue(any(n['op']=='opaque' for n in out['nodes']))
@@ -56,6 +56,6 @@ class ExporterTests(unittest.TestCase):
         self.assertEqual(result['nodes'][0]['inputs'],['x','x'])
         padded=nn.Sequential(nn.Conv2d(1,1,3,padding=1,padding_mode='reflect'))
         result=export_model(padded,torch.randn(1,1,4,4))
-        self.assertEqual(result['nodes'][0]['op'],'opaque')
+        self.assertEqual(result['nodes'][0]['op'],'conv2d')
 
 if __name__=='__main__': unittest.main()

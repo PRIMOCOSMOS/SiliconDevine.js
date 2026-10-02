@@ -36,6 +36,7 @@ cases = [
     ('mlp', nn.Sequential(nn.Linear(8, 12), nn.GELU(), nn.Linear(12, 6), nn.ReLU(), nn.Linear(6, 4)), torch.randn(2,8), 'fx'),
     ('conv2d', Residual(), torch.randn(1,2,8,8), 'fx'),
     ('conv3d', nn.Sequential(nn.Conv3d(1,2,3,padding=1),nn.ReLU(),nn.Conv3d(2,2,3,padding=1)), torch.randn(1,1,4,4,4), 'fx'),
+    ('transformer', nn.TransformerEncoderLayer(8,2,16,batch_first=True,dropout=0), torch.randn(1,4,8), 'export'),
     ('attention', Attention(), torch.randn(1,4,8), 'export'),
 ]
 for name, model, x, backend in cases:

@@ -17,6 +17,11 @@ export interface Tensor {
     };
     stride?: number[];
     source?: string;
+    samples?: Record<number, number | null>;
+    spatialRank?: number;
+    specialValues?: Record<number, '-inf' | '+inf' | 'nan'>;
+    axes?: string[];
+    semantic?: string;
 }
 export interface Operation {
     id: string;
@@ -42,6 +47,23 @@ export interface Model {
         version?: string;
     };
     notes?: string[];
+    provenance?: Record<string, unknown>;
+    functionalUnits?: Record<string, unknown>[];
+    constraints?: Record<string, string>;
+    modules?: {
+        path: string;
+        type: string;
+        qualified?: string;
+        code?: {
+            file: string;
+            line: number;
+            sha256: string;
+        };
+    }[];
+    live?: {
+        tensorWindows: boolean;
+        available: string[];
+    };
 }
 export function numel(shape: Dimension[]): number | undefined {
     if (shape.some(n => typeof n !== 'number'))
@@ -50,7 +72,11 @@ export function numel(shape: Dimension[]): number | undefined {
     return Number.isSafeInteger(n) ? n : undefined;
 }
 export function valueAt(t: Tensor, index: number): number {
-    const n = t.data?.values[index - t.data.offset];
+    if (t.specialValues?.[index] === '-inf')
+        return -Infinity;
+    if (t.specialValues?.[index] === '+inf')
+        return Infinity;
+    const n = t.samples && Object.prototype.hasOwnProperty.call(t.samples, index) ? t.samples[index] : t.data?.values[index - t.data.offset];
     return typeof n === 'number' && Number.isFinite(n) ? n : NaN;
 }
 export function coordinates(index: number, shape: number[]): number[] {
@@ -78,7 +104,7 @@ export function validateModel(input: unknown): Model {
             throw Error('张量定义无效或 ID 重复。');
         if (t.shape.length > 16 || t.shape.some(d => typeof d === 'number' ? !Number.isSafeInteger(d) || d < 0 : typeof d !== 'string' || !d))
             throw Error(`无效形状：${t.id}`);
-        if (t.stats && (![t.stats.min,t.stats.max,t.stats.absmax].every(Number.isFinite) || t.stats.absmax < 0 || t.stats.min > t.stats.max))
+        if (t.stats && (![t.stats.min, t.stats.max, t.stats.absmax].every(Number.isFinite) || t.stats.absmax < 0 || t.stats.min > t.stats.max))
             throw Error(`无效数值统计：${t.id}`);
         if (t.data) {
             if (!Array.isArray(t.data.values) || !Number.isSafeInteger(t.data.offset) || t.data.offset < 0 || t.data.values.some(v => v !== null && (typeof v !== 'number' || !Number.isFinite(v))))
@@ -92,8 +118,10 @@ export function validateModel(input: unknown): Model {
             throw Error('内嵌数值超过 2,000,000 个；请降低导出窗口。');
         tensors.set(t.id, t);
     }
-    const exists = (id: string) => { if (!tensors.has(id))
-        throw Error(`缺失张量：${id}`); };
+    const exists = (id: string) => {
+        if (!tensors.has(id))
+            throw Error(`缺失张量：${id}`);
+    };
     for (const n of m.nodes) {
         if (!n || typeof n.id !== 'string' || !n.id || ids.has(n.id) || typeof n.op !== 'string' || typeof n.name !== 'string' || !Array.isArray(n.inputs) || !Array.isArray(n.outputs) || !n.outputs.length)
             throw Error('算子无效或 ID 重复。');

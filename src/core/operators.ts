@@ -1,4 +1,6 @@
-import { coordinates, flatIndex, valueAt, type Tensor, type Operation } from './model';
+import { coordinates, flatIndex, valueAt, type Tensor, type Operation } from './model.js';
+import { installExtendedOperators } from './extendedOperators.js';
+import { installLLMOperators } from './llmOperators.js';
 /** A dependency names an actual scalar coordinate. Weight is the actual multiplier. */
 export interface Dependency {
     tensor: string;
@@ -34,12 +36,15 @@ registerOperator('linear', { label: '全连接', color: '#68e6d2', formula: 'y =
     } });
 function erf(x: number) { const s = x < 0 ? -1 : 1, a = Math.abs(x), t = 1 / (1 + .3275911 * a); return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - .284496736) * t + .254829592) * t * Math.exp(-a * a)); }
 const functions: Record<string, (x: number, a: Record<string, unknown>) => number> = { relu: x => Math.max(0, x), sigmoid: x => 1 / (1 + Math.exp(-x)), tanh: x => Math.tanh(x), gelu: (x, a) => a.approximate === 'tanh' ? .5 * x * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (x + .044715 * x * x * x))) : .5 * x * (1 + erf(x / Math.SQRT2)) };
+registerOperator('exp',{label:'指数变换',color:'#a7caff',formula:'y = exp(x)',detail:'exact',curve:Math.exp,dependencies:(n,_,i)=>[{tensor:n.inputs[0],index:i}]});
+registerOperator('standard_normal',{label:'标准高斯噪声',color:'#c6b4ff',formula:'ε ∼ N(0,I) · 显示本次 PyTorch 实际抽样',detail:'exact',dependencies:()=>[]});
+registerOperator('gaussian_sample',{label:'高斯重参数采样',color:'#c6b4ff',formula:'z = μ + exp(½ log σ²) ⊙ ε,  ε ∼ N(0,I)',detail:'exact',dependencies:(n,_,i)=>{const u=n.attrs?.gaussian as Record<string,string>;return [{tensor:u.mean,index:i},{tensor:u.logvar,index:i},{tensor:u.noise,index:i}];}});
 for (const [name, curve] of Object.entries(functions))
     registerOperator(name, { label: name.toUpperCase(), color: '#b6a0e6', formula: name === 'relu' ? 'y = max(0, x)' : `y = ${name}(x)`, detail: 'exact', curve, dependencies: (n, _, index) => [{ tensor: n.inputs[0], index, weight: 1 }] });
 for (const op of ['reshape', 'flatten', 'identity', 'dropout'])
     registerOperator(op, { label: op, color: '#a8c4e5', formula: op === 'dropout' ? 'eval: y = x' : '保持元素，变换形状', detail: 'exact', dependencies: (n, _, index) => [{ tensor: n.inputs[0], index }] });
 for (const op of ['add', 'multiply'])
-    registerOperator(op, { label: op === 'add' ? '残差相加' : '逐元素乘法', color: '#dfb076', formula: op === 'add' ? 'y = a + b' : 'y = a ⊙ b', detail: 'exact', dependencies: (n, out, index, t) => n.inputs.map(id => { const tensor = t.get(id)!, oc = coordinates(index, out.shape as number[]), s = tensor.shape as number[]; const c = oc.slice(oc.length - s.length).map((v, i) => s[i] === 1 ? 0 : v); return { tensor: id, index: flatIndex(c, s) }; }) });
+    registerOperator(op, { label: op === 'add' ? '逐元素相加' : '逐元素乘法', color: '#dfb076', formula: op === 'add' ? 'y = a + b' : 'y = a ⊙ b', detail: 'exact', dependencies: (n, out, index, t) => n.inputs.map(id => { const tensor = t.get(id)!, oc = coordinates(index, out.shape as number[]), s = tensor.shape as number[]; const c = oc.slice(oc.length - s.length).map((v, i) => s[i] === 1 ? 0 : v); return { tensor: id, index: flatIndex(c, s) }; }) });
 for (const dim of [1, 2, 3])
     registerOperator(`conv${dim}d`, { label: `${dim}D 卷积`, color: '#84bce6', formula: 'Y[n,o,p] = b[o] + Σ W[o,c,k] X[n,c,p·s−pad+k·d]', detail: 'exact', dependencies: (n, out, index, t) => {
             const [x, w] = pair(n, t);
@@ -115,3 +120,20 @@ registerOperator('layernorm', { label: '层归一化', color: '#b6a0e6', formula
     } });
 for (const op of ['batchnorm', 'maxpool2d', 'avgpool2d', 'concat'])
     registerOperator(op, { ...boundary, label: op, color: op.includes('norm') ? '#b6a0e6' : '#84bce6', formula: '真实输入 / 输出；内部标量依赖待插件扩展' });
+installExtendedOperators(registerOperator);
+installLLMOperators(registerOperator);
+registerOperator('layout', { label: '坐标组织', color: '#84bce6', formula: '只改变坐标组织；元素数值不变', detail: 'exact', dependencies: (node, out, index, tensors) => {
+        const children = node.attrs?.children as Operation[] ?? [], producer = new Map(children.flatMap(n => n.outputs.map(id => [id, n] as const)));
+        const trace = (tensor: string, i: number, depth: number): Dependency[] => {
+            if (depth > children.length)
+                return [];
+            const n = producer.get(tensor);
+            if (!n)
+                return [{ tensor, index: i }];
+            const value = tensors.get(tensor);
+            if (!value)
+                return [];
+            return operatorVisual(n.op).dependencies(n, value, i, tensors).flatMap(d => trace(d.tensor, d.index, depth + 1));
+        };
+        return trace(out.id, index, 0);
+    } });

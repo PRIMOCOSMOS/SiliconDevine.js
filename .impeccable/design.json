@@ -1,0 +1,397 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-02T04:02:51.3878568Z",
+  "title": "Design System: SiliconDevine",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Black Stage",
+        "tonalRamp": [
+          "oklch(15% 0.025 260)",
+          "oklch(26% 0.025 260)",
+          "oklch(38% 0.025 260)",
+          "oklch(49% 0.025 260)",
+          "oklch(61% 0.025 260)",
+          "oklch(72% 0.025 260)",
+          "oklch(84% 0.025 260)",
+          "oklch(95% 0.025 260)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Deep Surface",
+        "tonalRamp": [
+          "oklch(15% 0.025 260)",
+          "oklch(26% 0.025 260)",
+          "oklch(38% 0.025 260)",
+          "oklch(49% 0.025 260)",
+          "oklch(61% 0.025 260)",
+          "oklch(72% 0.025 260)",
+          "oklch(84% 0.025 260)",
+          "oklch(95% 0.025 260)"
+        ]
+      },
+      "field": {
+        "role": "neutral",
+        "displayName": "Control Surface",
+        "tonalRamp": [
+          "oklch(15% 0.03 260)",
+          "oklch(26% 0.03 260)",
+          "oklch(38% 0.03 260)",
+          "oklch(49% 0.03 260)",
+          "oklch(61% 0.03 260)",
+          "oklch(72% 0.03 260)",
+          "oklch(84% 0.03 260)",
+          "oklch(95% 0.03 260)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Blue Graphite Line",
+        "tonalRamp": [
+          "oklch(15% 0.035 260)",
+          "oklch(26% 0.035 260)",
+          "oklch(38% 0.035 260)",
+          "oklch(49% 0.035 260)",
+          "oklch(61% 0.035 260)",
+          "oklch(72% 0.035 260)",
+          "oklch(84% 0.035 260)",
+          "oklch(95% 0.035 260)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Cool Secondary Text",
+        "tonalRamp": [
+          "oklch(15% 0.03 260)",
+          "oklch(26% 0.03 260)",
+          "oklch(38% 0.03 260)",
+          "oklch(49% 0.03 260)",
+          "oklch(61% 0.03 260)",
+          "oklch(72% 0.03 260)",
+          "oklch(84% 0.03 260)",
+          "oklch(95% 0.03 260)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Silver White",
+        "tonalRamp": [
+          "oklch(15% 0.014 260)",
+          "oklch(26% 0.014 260)",
+          "oklch(38% 0.014 260)",
+          "oklch(49% 0.014 260)",
+          "oklch(61% 0.014 260)",
+          "oklch(72% 0.014 260)",
+          "oklch(84% 0.014 260)",
+          "oklch(95% 0.014 260)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Ice Blue",
+        "tonalRamp": [
+          "oklch(15% 0.075 260)",
+          "oklch(26% 0.075 260)",
+          "oklch(38% 0.075 260)",
+          "oklch(49% 0.075 260)",
+          "oklch(61% 0.075 260)",
+          "oklch(72% 0.075 260)",
+          "oklch(84% 0.075 260)",
+          "oklch(95% 0.075 260)"
+        ]
+      },
+      "primary-fill": {
+        "role": "primary",
+        "displayName": "Frosted Action",
+        "tonalRamp": [
+          "oklch(15% 0.032 260)",
+          "oklch(26% 0.032 260)",
+          "oklch(38% 0.032 260)",
+          "oklch(49% 0.032 260)",
+          "oklch(61% 0.032 260)",
+          "oklch(72% 0.032 260)",
+          "oklch(84% 0.032 260)",
+          "oklch(95% 0.032 260)"
+        ]
+      },
+      "primary-ink": {
+        "role": "neutral",
+        "displayName": "Action Ink",
+        "tonalRamp": [
+          "oklch(15% 0.04 260)",
+          "oklch(26% 0.04 260)",
+          "oklch(38% 0.04 260)",
+          "oklch(49% 0.04 260)",
+          "oklch(61% 0.04 260)",
+          "oklch(72% 0.04 260)",
+          "oklch(84% 0.04 260)",
+          "oklch(95% 0.04 260)"
+        ]
+      },
+      "native-field": {
+        "role": "neutral",
+        "displayName": "Native Control Surface",
+        "tonalRamp": [
+          "oklch(15% 0.035 260)",
+          "oklch(26% 0.035 260)",
+          "oklch(38% 0.035 260)",
+          "oklch(49% 0.035 260)",
+          "oklch(61% 0.035 260)",
+          "oklch(72% 0.035 260)",
+          "oklch(84% 0.035 260)",
+          "oklch(95% 0.035 260)"
+        ]
+      },
+      "native-line": {
+        "role": "neutral",
+        "displayName": "Native Blue Graphite Line",
+        "tonalRamp": [
+          "oklch(15% 0.04 260)",
+          "oklch(26% 0.04 260)",
+          "oklch(38% 0.04 260)",
+          "oklch(49% 0.04 260)",
+          "oklch(61% 0.04 260)",
+          "oklch(72% 0.04 260)",
+          "oklch(84% 0.04 260)",
+          "oklch(95% 0.04 260)"
+        ]
+      },
+      "native-muted": {
+        "role": "neutral",
+        "displayName": "Native Secondary Text",
+        "tonalRamp": [
+          "oklch(15% 0.035 260)",
+          "oklch(26% 0.035 260)",
+          "oklch(38% 0.035 260)",
+          "oklch(49% 0.035 260)",
+          "oklch(61% 0.035 260)",
+          "oklch(72% 0.035 260)",
+          "oklch(84% 0.035 260)",
+          "oklch(95% 0.035 260)"
+        ]
+      },
+      "native-ink": {
+        "role": "neutral",
+        "displayName": "Native Action Ink",
+        "tonalRamp": [
+          "oklch(15% 0.06 260)",
+          "oklch(26% 0.06 260)",
+          "oklch(38% 0.06 260)",
+          "oklch(49% 0.06 260)",
+          "oklch(61% 0.06 260)",
+          "oklch(72% 0.06 260)",
+          "oklch(84% 0.06 260)",
+          "oklch(95% 0.06 260)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "brand": {
+        "displayName": "Tektur Identity",
+        "purpose": "Web wordmark and family subtitles; native wordmark uses bundled Tektur."
+      },
+      "title": {
+        "displayName": "Model Title",
+        "purpose": "Active model title pairs Tektur Latin glyphs with ZCOOL QingKe HuangYou Chinese glyphs at weight 400; 30px at compact desktop and 27px on mobile."
+      },
+      "section": {
+        "displayName": "Section Title",
+        "purpose": "Library connection and inspector sections."
+      },
+      "body": {
+        "displayName": "Working Text",
+        "purpose": "Compact descriptions and control text."
+      },
+      "label": {
+        "displayName": "Supporting Label",
+        "purpose": "Metadata and secondary controls."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Developer snippets and values."
+      },
+      "display": {
+        "displayName": "Chinese and Latin Display",
+        "purpose": "Tektur plus bundled ZCOOL QingKe HuangYou for model titles, library statements and family headings; native Chinese headings use the bundled TTF."
+      }
+    },
+    "shadows": [
+      {
+        "name": "transport-float",
+        "value": "0 18px 50px -25px #000",
+        "purpose": "Soft depth below the bottom transport only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(.16,1,.3,1)",
+        "purpose": "Model and library entrance easing."
+      },
+      {
+        "name": "control-colors",
+        "value": "200ms",
+        "purpose": "Background and text color changes."
+      },
+      {
+        "name": "library-reveal",
+        "value": "480ms; opacity .4 to 1; translateY(18px) to 0",
+        "purpose": "Opening the separate model library."
+      },
+      {
+        "name": "model-entrance",
+        "value": "800ms; opacity .5 to 1; blur(4px) to 0; scale(.985) to 1",
+        "purpose": "Introducing the model stage."
+      },
+      {
+        "name": "family-expand",
+        "value": "400ms; rotation 0 to 45deg",
+        "purpose": "Family disclosure icon state."
+      },
+      {
+        "name": "loading-pulse",
+        "value": "1.6s infinite; halfway opacity .25",
+        "purpose": "Only during loading connection state."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Disable web shell transitions and animations; initially pause model playback."
+      },
+      {
+        "name": "native-orbit",
+        "value": "65ms frame interval; phase increment .012",
+        "purpose": "Three travelling light markers over a static antialiased local orbit image; honors Windows animation preference and pauses when unmapped."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-desktop",
+        "value": "1100px"
+      },
+      {
+        "name": "mobile",
+        "value": "760px"
+      },
+      {
+        "name": "native-single-column",
+        "value": "1000px multiplied by display DPI scale"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Pale connect and rebuild controls.",
+      "html": "<button class=\"ds-primary\">连接</button>",
+      "css": ".ds-primary{font:12px \"Segoe UI Variable Text\",\"Segoe UI\",\"Microsoft YaHei UI\",sans-serif;border:0;padding:11px 15px;border-radius:10px;cursor:pointer;transition:background .2s,color .2s;background:#dce9ff;color:#162638;font-weight:600}.ds-primary:hover,.ds-primary:active{background:#dce9ff;color:#162638}.ds-primary:disabled{background:#263347;color:#afc2db;cursor:default}.ds-primary:focus-visible{outline:2px solid var(--accent,#aecfff);outline-offset:4px;}@media(prefers-reduced-motion:reduce){button,svg{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Secondary Action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Graphite secondary controls.",
+      "html": "<button class=\"ds-secondary\">导出</button>",
+      "css": ".ds-secondary{font:12px \"Segoe UI Variable Text\",\"Segoe UI\",\"Microsoft YaHei UI\",sans-serif;border:0;padding:11px 15px;border-radius:10px;cursor:pointer;transition:background .2s,color .2s;background:var(--field,#19202c);color:var(--text,#edf2fa)}.ds-secondary:hover{background:#2a374a}.ds-secondary:active{background:#384d68}.ds-secondary:disabled{background:#121721;color:#7d8ba1;cursor:default}.ds-secondary:focus-visible{outline:2px solid var(--accent,#aecfff);outline-offset:4px;}@media(prefers-reduced-motion:reduce){button,svg{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Global Navigation",
+      "kind": "nav",
+      "refersTo": "button-header",
+      "description": "Quiet global navigation with an expanded surface state.",
+      "html": "<nav class=\"ds-global\" aria-label=\"工作台\"><button aria-expanded=\"true\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/></svg>模型库</button></nav>",
+      "css": ".ds-global button{font:12px \"Segoe UI Variable Text\",\"Segoe UI\",\"Microsoft YaHei UI\",sans-serif;border:0;padding:11px 15px;border-radius:10px;cursor:pointer;transition:background .2s,color .2s;display:flex;align-items:center;gap:9px;background:transparent;color:#b5c3d9;padding:10px 13px;border-radius:24px}.ds-global button:hover{background:#182334;color:#fff}.ds-global button[aria-expanded=true]{background:#dfebfc;color:#162236}.ds-global svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5}.ds-global button:focus-visible{outline:2px solid var(--accent,#aecfff);outline-offset:4px;}@media(prefers-reduced-motion:reduce){button,svg{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Endpoint Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labeled endpoint with monospace value.",
+      "html": "<label class=\"ds-label\" for=\"ds-endpoint\">PyTorch 服务地址</label><input class=\"ds-input\" id=\"ds-endpoint\" type=\"url\" value=\"http://127.0.0.1:5182\">",
+      "css": ".ds-label{display:block;font:12px \"Segoe UI Variable Text\",\"Segoe UI\",\"Microsoft YaHei UI\",sans-serif;color:#b1bfd4;margin:0 0 9px}.ds-input{font:12px Consolas,monospace;min-width:0;padding:11px 12px;background:#090f18;color:#e5edfa;border:1px solid #303d52;border-radius:9px}.ds-input:focus-visible{outline:2px solid var(--accent,#aecfff);outline-offset:4px;}"
+    },
+    {
+      "name": "Module Navigation",
+      "kind": "nav",
+      "refersTo": "navigation-item",
+      "description": "Current-node emphasis within the requested inspector.",
+      "html": "<nav class=\"ds-index\" aria-label=\"计算模块\"><button aria-current=\"true\">全连接 · hidden</button><button>GELU · gelu</button></nav>",
+      "css": ".ds-index{display:grid;gap:3px;max-width:280px}.ds-index button{font:12px \"Segoe UI Variable Text\",\"Segoe UI\",\"Microsoft YaHei UI\",sans-serif;border:0;padding:11px 15px;border-radius:10px;cursor:pointer;transition:background .2s,color .2s;text-align:left;background:transparent;color:var(--text,#edf2fa);line-height:1.6;overflow-wrap:anywhere;padding:10px}.ds-index button:hover{background:#213149}.ds-index button[aria-current=true]{background:#304360;color:#fff}.ds-index button:focus-visible{outline:2px solid var(--accent,#aecfff);outline-offset:4px;}@media(prefers-reduced-motion:reduce){button,svg{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Family Disclosure",
+      "kind": "custom",
+      "description": "Library architecture family with real expandable selection controls.",
+      "html": "<details class=\"ds-family\"><summary><span><strong>变分自编码</strong><small>Latent space</small></span><span class=\"ds-expand\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg></span></summary><div class=\"ds-family-content\"><p>编码分布、真实采样、解码重建。</p><button>PyTorch 官方 VAE</button></div></details>",
+      "css": ".ds-family{font-family:\"Segoe UI Variable Text\",\"Segoe UI\",\"Microsoft YaHei UI\",sans-serif;color:var(--text,#edf2fa);border-bottom:1px solid #2a374a;padding:20px 0}.ds-family summary{list-style:none;display:flex;align-items:center;gap:22px;cursor:pointer;line-height:1.8;color:#c2d2e9}.ds-family summary::-webkit-details-marker{display:none}.ds-family strong{font-family:\"Tektur Variable\",\"ZCOOL QingKe HuangYou\",sans-serif;font-size:23px;font-weight:400;letter-spacing:-.02em}.ds-family small{display:block;margin-top:5px;font:12px \"Tektur Variable\",sans-serif;color:#9fadc4}.ds-expand{margin-left:auto;color:#b2c6e2}.ds-expand svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.4;transition:transform .4s cubic-bezier(.16,1,.3,1)}.ds-family[open] .ds-expand svg{transform:rotate(45deg)}.ds-family-content{padding-top:12px}.ds-family-content p{color:#b3c2d7;font-size:12px;line-height:1.8}.ds-family-content button{font:12px \"Segoe UI Variable Text\",\"Segoe UI\",\"Microsoft YaHei UI\",sans-serif;border:0;padding:11px 15px;border-radius:10px;cursor:pointer;transition:background .2s,color .2s;background:#182233;color:var(--text,#edf2fa);padding:10px 13px}.ds-family-content button:hover{background:#2d405c}.ds-family summary:focus-visible{outline:2px solid var(--accent,#aecfff);outline-offset:4px;}.ds-family-content button:focus-visible{outline:2px solid var(--accent,#aecfff);outline-offset:4px;}@media(prefers-reduced-motion:reduce){button,svg{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Suspended Transport",
+      "kind": "custom",
+      "description": "Gradient transport panel, pale playback and timeline.",
+      "html": "<div class=\"ds-dock\"><div class=\"ds-controls\"><button class=\"ds-play\">暂停</button><button>总览</button><button>全屏</button></div><label class=\"ds-timeline\">单步计算进度<input type=\"range\" aria-label=\"单步计算进度\"></label></div>",
+      "css": ".ds-dock{width:min(790px,100%);padding:13px 20px 9px;border-radius:16px;background:linear-gradient(160deg,#1d2735e6,#111824e6);box-shadow:0 18px 50px -25px #000;font-family:\"Segoe UI Variable Text\",\"Segoe UI\",\"Microsoft YaHei UI\",sans-serif}.ds-controls{display:flex;justify-content:center;gap:6px}.ds-controls button{font:12px \"Segoe UI Variable Text\",\"Segoe UI\",\"Microsoft YaHei UI\",sans-serif;border:0;padding:11px 15px;border-radius:10px;cursor:pointer;transition:background .2s,color .2s;padding:9px 12px;background:transparent;color:#e5edfb}.ds-controls button:hover{background:#334357}.ds-controls .ds-play{background:#e7effc;color:#162136;min-width:70px;border-radius:24px;font-weight:600}.ds-timeline{display:flex;gap:12px;align-items:center;margin-top:11px;padding:0 10px;font-size:10px;color:#b4c1d6}.ds-timeline input{flex:1;min-width:30px;accent-color:var(--accent,#aecfff)}.ds-controls button:focus-visible{outline:2px solid var(--accent,#aecfff);outline-offset:4px;}.ds-timeline input:focus-visible{outline:2px solid var(--accent,#aecfff);outline-offset:4px;}@media(prefers-reduced-motion:reduce){button,svg{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Inspector Surface",
+      "kind": "card",
+      "refersTo": "inspector",
+      "description": "Tonal interpretation panel, requested separately from the model stage.",
+      "html": "<section class=\"ds-inspector\"><h2>模型解读</h2><p>水晶块保留真实坐标，参数与计算主干对齐。</p></section>",
+      "css": ".ds-inspector{width:380px;max-width:100%;padding:25px 28px 40px;background:#101620;border-radius:16px 0 0 0;font-family:\"Segoe UI Variable Text\",\"Segoe UI\",\"Microsoft YaHei UI\",sans-serif;color:var(--text,#edf2fa)}.ds-inspector h2{font-size:18px;line-height:1.5;font-weight:500;overflow-wrap:anywhere}.ds-inspector p{font-size:12px;line-height:1.9;color:#bdc9dc;overflow-wrap:anywhere}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Crystal Keynote Stage",
+    "overview": "The real model is the protagonist. An uninterrupted near-black stage, silver-white text and ice-blue controls bring keynote clarity to scientific crystal rendering. Controls gather into a compact suspended transport; source selection and detailed interpretation appear only when requested.\n\nThe separate model library uses editorial scale and restrained architecture diagrams. The Windows launcher pairs an orbit-and-crystal brand stage with a configuration area. Appearance motion gives these surfaces presence while remaining separate from numerical execution. The launcher orbit is identity artwork, never a representation of captured tensor values.",
+    "keyCharacteristics": [
+      "A full-window model stage with a compact bottom transport.",
+      "A separate categorized model library and contextual inspector.",
+      "Silver-white hierarchy, ice-blue actions and dark tonal surfaces.",
+      "Genuine crystal geometry and numerical colors retain scientific meaning.",
+      "Responsive, DPI-aware controls and deliberate appearance motion."
+    ],
+    "rules": [
+      {
+        "name": "The Numerical Color Rule",
+        "body": "Shell and category accents must not replace the model's numerical color mapping. Negative, zero, positive, active, unknown and masked values retain the scientific renderer's existing semantics and legend.",
+        "section": "colors"
+      },
+      {
+        "name": "The Model Title Rule",
+        "body": "On the workbench, the active model name leads the text hierarchy; transport, metadata and hierarchy controls remain smaller and quieter.",
+        "section": "typography"
+      },
+      {
+        "name": "The Receding Controls Rule",
+        "body": "Keep the main stage clear by placing model selection on its own surface and detailed interpretation in the requested inspector.",
+        "section": "layout"
+      },
+      {
+        "name": "The Stage Depth Rule",
+        "body": "Concentrate spatial expression in the model and purposeful optical framing; preserve quiet working surfaces around it.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** let the actual crystal model dominate the default workspace.",
+      "**Do** put model selection in the library and interpretation in the requested inspector.",
+      "**Do** preserve numerical color meaning and source provenance.",
+      "**Do** use silver-white hierarchy, ice-blue actions and quiet graphite controls.",
+      "**Do** pair Tektur Latin identity with ZCOOL QingKe HuangYou Chinese display headings, keeping controls in the UI text face.",
+      "**Do** preserve responsive flow, keyboard access and native DPI-aware sizing.",
+      "**Do** distinguish launcher identity artwork from scientific model data.",
+      "**Do** keep appearance motion separate from computation and respect the implemented motion preferences."
+    ],
+    "donts": [
+      "**Don't** restore the rejected persistent-sidebar dashboard layout.",
+      "**Don't** add ornamental HUD clutter around the scientific structure.",
+      "**Don't** recolor numerical tensors to match category or shell accents.",
+      "**Don't** imply a measured capture percentage with an indeterminate indicator."
+    ]
+  }
+}

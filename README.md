@@ -1,8 +1,21 @@
 # SiliconDevine.js
 
-从 PRIMOCOSMOS 工作站提取的独立 Web 神经网络可视化框架，当前版本 **0.1.0**。
+本地 PyTorch 神经网络可视化工具，当前版本 **0.5.0**。先看 [开始使用](开始使用.md)，按步骤打开示例或接入自己的模型。
 
 保留水晶张量、数值着色、完整的 MLP 权重线、连续计算高亮、卷积感受野、三维体数据、主干层级和嵌入模型空间的全息标牌。框架不依赖 React，也不依赖原个人主页。
+
+## 应用式使用（推荐）
+
+双击 **SiliconDevine.exe**：选择模型文件和已安装 PyTorch 的 Python 环境，点击「进入模型空间」。捕获完成后自动打开工作台。在 IDE 保存代码，网页自动更新；出错时保留上一份有效模型。
+
+默认示例：`examples/live_model.py`。无需 Node 开发服务器。详见 [使用指南](docs/QUICKSTART.html) 和 [IDE 接入](docs/LIVE.md)。
+
+```python
+from silicondevine import show
+show(model, (example_input,))
+```
+
+已有模型程序也可直接使用 show；首次在对应 Python 环境执行 `python -m pip install -e D:\SiliconDevine.js\python`。
 
 ## 立即查看
 
@@ -15,7 +28,7 @@ python serve.py
 
 打开 **http://127.0.0.1:5181**。也可以双击 `start-demo.cmd`。默认仅监听本机。
 
-提供声明式 MLP、PyTorch MLP、残差卷积、3D 卷积、注意力五种入口。JSON 导入在浏览器内完成，不上传模型。支持拖动旋转、滚轮缩放、悬停计算区域、点击/索引聚焦、暂停和全屏。
+「模型库」包含 MLP、卷积、Transformer、SAB／ISAB 和 VAE 示例。JSON 导入在本机浏览器内完成。支持拖动旋转、滚轮缩放、悬停计算区域、点击或索引聚焦、暂停和全屏。
 
 ## 开发与构建
 
@@ -95,4 +108,18 @@ viewer.load(graph);
 
 进一步阅读：[图格式与 API](docs/API.md) · [架构与性能](docs/ARCHITECTURE.md) · [支持范围](docs/SUPPORT.md) · [验证记录](docs/VALIDATION.md)
 
-本次没有更改个人主页既有渲染器。框架和网站可以后续通过统一 IR 适配器接入，避免把论文专用逻辑重新写入通用内核。
+
+
+## LLM 可视化
+
+启动器的「选择示例」可直接选 TinyGPT 或 LLaMA-style；网页的模型来源也提供两个预导出示例。默认显示功能架构，点击 Decoder Block → 注意力 / FFN → 算子细节逐层查看，可随时用「上一级」返回。源码见 examples/llm_models.py，模型尺寸与验收范围见 [LLM 说明](docs/LLM.md)。
+
+另附 SAB / ISAB 集合注意力示例：examples/set_attention.py。启动器选择后直接启动，支持真实概率矩阵、诱导点两次聚合、Norm 与残差行元素动效。
+
+## 0.4 · 上游源码接入
+
+新增 Set Transformer 作者原始 SAB/ISAB 与 Transformers 原生 LLaMA，启动器和网页均有独立入口。代码来源、适配边界、功能识别和新动效见 [UPSTREAM.md](docs/UPSTREAM.md)。
+
+## 0.5：演示外观与 VAE
+
+双击 SiliconDevine.exe 启动。启动器采用动态品牌舞台与模型配置双区；Web 采用全幅模型舞台、独立分类模型库、按需打开的解读与参数面板和底部操作台。模型本身保持真实张量、数值颜色和计算动效；界面过渡遵循减少动态效果偏好。新增官方 PyTorch VAE、卷积 VAE、条件 VAE 入口，按实际图识别高斯参数头和重参数采样，详见 [VAE 说明](docs/VAE.md) 与 [界面操作](docs/LAUNCHER.md)。

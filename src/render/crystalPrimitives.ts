@@ -1,6 +1,6 @@
 import * as T from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { numericColor } from './numericPalette';
+import { numericColor } from './numericPalette.js';
 export type Position3 = [
     number,
     number,
@@ -85,8 +85,11 @@ export function createCrystalTensor(parent: T.Group, count: number, size = .42, 
         lit.count = litEdge.count = activeCount;
         body.visible = edge.visible = visibleCount > 0;
         lit.visible = litEdge.visible = activeCount > 0;
-        meshes.forEach(mesh => { mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor)
-            mesh.instanceColor.needsUpdate = true; });
+        meshes.forEach(mesh => {
+            mesh.instanceMatrix.needsUpdate = true;
+            if (mesh.instanceColor)
+                mesh.instanceColor.needsUpdate = true;
+        });
         group.userData.focus = state.focus ?? -1;
         group.userData.active = [...active];
     }

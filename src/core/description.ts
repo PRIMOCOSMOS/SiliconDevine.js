@@ -1,5 +1,5 @@
-import { defineModel } from './builder';
-import type { Model } from './model';
+import { defineModel } from './builder.js';
+import type { Model } from './model.js';
 export interface ModelDescription {
     format: 'silicondevine-recipe';
     version: 1;

@@ -1,32 +1,34 @@
-# 0.1 支持范围
+# 0.3 支持范围
 
-## 可识别，不等于内部数学全部可视化
-
-| 层次 | 本版实际支持 |
+| 能力 | 实际范围 |
 | --- | --- |
-| 架构接入 | 合法 IR 的任意有向无环图；多输入、多输出、分支、共享参数 |
-| PyTorch | FX 与 torch.export，两者均用给定输入取得 eval 前向图 |
-| 真实数据 | 密集实数 Tensor；具体 shape/dtype/stride；可选有上限数值窗口 |
-| 完整标量依赖 | Linear、Conv1d/2d/3d、矩阵乘法、广播加法/乘法、Softmax、LayerNorm、置换与转置、展平与 reshape |
-| 标量曲线 | ReLU、GELU、Sigmoid、Tanh |
-| 仅边界 | 未注册的自定义算子、BatchNorm、池化、Concat 等；保留实际输入输出与拓扑，不伪造内部过程 |
-| 描述式构建 | 输入、Linear、四种激活的顺序构建与固定种子示例数值；任意 DAG 可通过 operation()/IR 定义 |
+| 接入 | FX / torch.export、位置/关键字与嵌套输入、合法 DAG、共享参数、多输入输出 |
+| 本地应用 | 桌面启动器、环境选择、模型监视、失败恢复、自动更新、按需张量窗口 |
+| 数学依赖 | Linear、分组/膨胀 Conv1/2/3D、转置卷积1/2/3D、矩阵/向量/批量乘法、广播加法/乘法 |
+| 更多依赖 | 最大/平均/自适应池化1/2/3D、BatchNorm、GroupNorm、InstanceNorm、Embedding、Concat、Softmax、LayerNorm、索引/切片、置换/转置/reshape、RMSNorm、chunk/split、stack、GQA 重复、掩码、差值 |
+| 激活 | ReLU、GELU、Sigmoid、Tanh、SiLU、LeakyReLU、ELU、Softplus；真实输入输出同步着色 |
+| 注意力 | export 的标准注意力、因果掩码、布尔/加性掩码与 GQA 展开为真实 repeat、transpose、matmul、scale、mask、softmax、matmul |
+| 动态形状 | 接收 dynamic_shapes，记录 range_constraints；晶体表示本次输入的具体形状 |
+| 导航 | 模块路径索引、图段分页、坐标窗口、保留边界输入输出 |
 
-“完整标量依赖”指支持条件内的依赖规则正确；屏幕仍受坐标窗口、图段与连接预算限制。全连接中未进入权重晶体窗口的参数仍可用于已有输入/输出坐标之间的数值连线。未知数值显示为未知。
+Conv 支持 same/valid、整数/元组 padding、reflect/replicate/circular。权重线与 W 晶体通过相同 Tensor ID / flatten index 联动。
 
-## 具体限制
+## 明确边界
 
-- 导出仅代表给定输入的前向执行，不包含反向梯度图、训练优化器、所有分支或无限循环。模型复制后切换 eval，因此 Dropout 是恒等路径。
-- FX 不支持一般数据依赖控制流。torch.export 也有可跟踪性限制。失败时改用另一个后端或导出子模块；不会保存半张伪图。
-- 本版导出器针对位置参数示例输入，未提供 kwargs / 动态形状约束配置。IR 能保留符号尺寸，但符号张量不生成精确晶体。
-- 稀疏、量化、复数 Tensor 当前明确报错。非 Tensor Python 数值/容器不会伪装成张量；容器里的 Tensor 会分别保存。
-- 数学插件是可扩展集合，不是 PyTorch 全部 ATen 算子的覆盖。`opaque` 或仅边界状态在检查面板中可见。
-- Conv 当前支持零填充的整数/元组 padding、stride、dilation、groups。字符串 same/valid、非零 padding_mode 应通过底层导出展开或新增插件，不能当作同一种零填充算子解释。
-- Matmul 插件支持 rank ≥ 2 的矩阵/批量矩阵；向量 dot / matvec 等需扩展。
-- 非线性公式曲线用于展示函数形状；PyTorch 数值由模型执行捕获。声明式 GELU 的 erf 使用数值近似，不是位级复刻 PyTorch kernel。
-- 渲染器窗口从各维 0 坐标开始，本版没有窗口偏移 UI。大模型可导出目标子模块/更大的数值窗口，或通过 IR 提供所需张量。
-- 开发者编写的 Python 模型在本地运行。网页只读取 JSON，不接受 Python 脚本执行，也不声称提供远程任意代码沙箱。
+- 这是给定输入的 eval 前向图，不是反向梯度、优化器或全部 Python 分支。FX 和 export 各有可跟踪性限制。
+- 完整依赖规则不意味着整个模型同时渲染。图段、晶体与连线有预算；复杂图按区域懒惰显示，未知值不当作零。
+- 注意力分数矩阵超过 262144 项时保留融合边界。非零 attention dropout 保留融合边界。已验证 TinyGPT、LLaMA-style 与原生 Transformer 小型实例，不代表所有模型变体。
+- 未注册算子（包括独立 padding 等）保留真实输入输出，提示内部数学动效未实现。插件不是所有 ATen 算子的集合，可通过 registerOperator 扩展。
+- 稀疏、量化、复数 Tensor 明确拒绝；超出 JavaScript 安全整数范围的整数不能保证精确传输。主要目标是密集浮点网络。
+- 静态 JSON 只包含已有数值；坐标偏移不产生缺失值。连接服务后才可读取预算内快照的其他坐标。
+- 动态约束是元数据，不在浏览器实现符号求解或自动覆盖所有输入。修改输入需要重新执行 PyTorch。
+- 激活曲线展示数学函数，输出数值由 PyTorch 执行捕获；声明式 GELU 使用 erf 近似，不宣称位级复现。
+- 本次验证 PyTorch 2.9 CPU / Windows Edge；CUDA、Safari、超大图、WebXR 和所有 PyTorch 版本尚未验证。
 
-## 下一步扩展接口
+模型文件由所选本机 Python 执行。浏览器不接受 Python 上传执行，不提供远程任意代码沙箱。
 
-先通过 `registerOperator()` 补齐算子；再补符号约束、按需张量数据源、模块聚合层级和大图虚拟布局。这些是明确的后续范围，当前版本没有把占位接口写成已实现功能。
+0.3 的 LLM 示例为随机初始化、小尺寸 prefill 前向模型；不含 tokenizer、预训练权重、KV-cache 增量解码或生成服务。RoPE 使用与相邻复数对等价的实数运算，框架仍不接受一般复数 Tensor。
+
+SAB / ISAB 使用带归一化的 MAB 独立示例；纯坐标变换可在功能架构中合并，数学映射保持。Norm、最后一轴 Softmax、二元逐元素合并提供专用局部机制动效；原始图始终可访问。
+
+0.4 新增上游源码直接接入和保守功能识别，详见 UPSTREAM.md。类型转换保留实际输出dtype和捕获数值，前端不模拟任意dtype位级转换。

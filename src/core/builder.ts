@@ -1,4 +1,4 @@
-import { validateModel, numel, type Model, type Tensor, type Operation } from './model';
+import { validateModel, numel, type Model, type Tensor, type Operation } from './model.js';
 /** Fluent graph builder; never evaluates code strings. Use operation() for custom DAGs. */
 export class ModelBuilder {
     private model: Model;
@@ -7,9 +7,17 @@ export class ModelBuilder {
     constructor(name: string, seed = 17) { this.model = { format: 'silicondevine', version: 1, name, tensors: [], nodes: [], inputs: [], outputs: [], producer: { backend: 'declarative' } }; this.state = seed; }
     private random() { this.state = (1664525 * this.state + 1013904223) >>> 0; return (this.state / 4294967296 - .5) * 2; }
     tensor(t: Tensor) { this.model.tensors.push(t); return this; }
-    input(id: string, shape: number[], values?: number[]) { const size = numel(shape); if (!shape.length || shape.some(n => !Number.isSafeInteger(n) || n < 1) || size === undefined || size > 65536)
-        throw Error('声明式数值演示需要正整数形状，最多 65,536 个元素。'); if (values && (values.length !== size || values.some(n => !Number.isFinite(n))))
-        throw Error('输入数值必须完整且为有限数值。'); this.tensor({ id, shape, dtype: 'float32', role: 'input', data: { offset: 0, values: values ?? Array.from({ length: size }, () => this.random()) } }); this.model.inputs.push(id); this.current = id; return this; }
+    input(id: string, shape: number[], values?: number[]) {
+        const size = numel(shape);
+        if (!shape.length || shape.some(n => !Number.isSafeInteger(n) || n < 1) || size === undefined || size > 65536)
+            throw Error('声明式数值演示需要正整数形状，最多 65,536 个元素。');
+        if (values && (values.length !== size || values.some(n => !Number.isFinite(n))))
+            throw Error('输入数值必须完整且为有限数值。');
+        this.tensor({ id, shape, dtype: 'float32', role: 'input', data: { offset: 0, values: values ?? Array.from({ length: size }, () => this.random()) } });
+        this.model.inputs.push(id);
+        this.current = id;
+        return this;
+    }
     operation(node: Operation, outputs: Tensor[]) { outputs.forEach(t => this.tensor(t)); this.model.nodes.push(node); this.current = node.outputs[0]; return this; }
     linear(id: string, outFeatures: number) {
         const x = this.model.tensors.find(t => t.id === this.current);

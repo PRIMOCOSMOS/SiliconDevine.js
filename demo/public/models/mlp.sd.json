@@ -6,6 +6,59 @@
     "backend": "pytorch-fx",
     "version": "2.9.0+cpu"
   },
+  "constraints": {},
+  "modules": [
+    {
+      "path": "0",
+      "type": "Linear",
+      "qualified": "torch.nn.modules.linear.Linear",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py",
+        "line": 53,
+        "sha256": "2bc88db08164767dbe2930978d33fa33a879478f73a3bcffedcd58c6b03a7b79"
+      }
+    },
+    {
+      "path": "1",
+      "type": "GELU",
+      "qualified": "torch.nn.modules.activation.GELU",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\activation.py",
+        "line": 777,
+        "sha256": "79bd206f7f00ce55d05d7aaa86d19e307d5b53267af519391931b4af92f1408c"
+      }
+    },
+    {
+      "path": "2",
+      "type": "Linear",
+      "qualified": "torch.nn.modules.linear.Linear",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py",
+        "line": 53,
+        "sha256": "2bc88db08164767dbe2930978d33fa33a879478f73a3bcffedcd58c6b03a7b79"
+      }
+    },
+    {
+      "path": "3",
+      "type": "ReLU",
+      "qualified": "torch.nn.modules.activation.ReLU",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\activation.py",
+        "line": 105,
+        "sha256": "79bd206f7f00ce55d05d7aaa86d19e307d5b53267af519391931b4af92f1408c"
+      }
+    },
+    {
+      "path": "4",
+      "type": "Linear",
+      "qualified": "torch.nn.modules.linear.Linear",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py",
+        "line": 53,
+        "sha256": "2bc88db08164767dbe2930978d33fa33a879478f73a3bcffedcd58c6b03a7b79"
+      }
+    }
+  ],
   "tensors": [
     {
       "id": "input_1",
@@ -698,5 +751,6 @@
     "Eval-mode forward graph for the supplied inputs; no backward graph or unexecuted control-flow branches.",
     "Stored values are contiguous windows. Statistics describe stored values, not the entire tensor.",
     "Unknown operators preserve topology and captured tensors; internal math is not invented."
-  ]
+  ],
+  "functionalUnits": []
 }

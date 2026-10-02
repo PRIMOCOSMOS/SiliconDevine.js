@@ -1,16 +1,44 @@
 {
-  "name": "silicondevine.js", "version": "0.1.0", "type": "module",
+  "name": "silicondevine.js",
+  "version": "0.5.0",
+  "type": "module",
   "description": "Crystal tensor visualization for PyTorch computational graphs",
-  "main": "./dist/silicondevine.js", "types": "./dist/types/index.d.ts",
-  "exports": {".": {"types": "./dist/types/index.d.ts", "import": "./dist/silicondevine.js"}},
-  "files": ["dist", "README.md", "docs", "NOTICE.md", "THIRD_PARTY_LICENSES"],
+  "main": "./dist/silicondevine.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/silicondevine.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs",
+    "NOTICE.md",
+    "THIRD_PARTY_LICENSES"
+  ],
   "scripts": {
     "dev": "vite --config vite.demo.config.ts --host 127.0.0.1 --port 5180",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build && tsc -p tsconfig.lib.json && vite build --config vite.demo.config.ts",
-    "test": "node tests/core.mjs && python -m unittest discover -s tests -p test_*.py",
-    "examples": "python examples/export_models.py"
+    "test": "node tests/core.mjs && python -m unittest discover -s tests -p test_*.py && python tests/generate_extended.py && node tests/extended.mjs && node tests/llm.mjs",
+    "examples": "python examples/export_models.py && python tests/export_llm.py && python tests/export_official.py",
+    "test:browser": "node tests/browser-v05.mjs",
+    "test:llm:browser": "node tests/browser-llm.mjs",
+    "test:mechanism:browser": "node tests/browser-mechanism.mjs",
+    "test:v04:browser": "node tests/browser-v04.mjs"
   },
-  "peerDependencies": {"three": ">=0.185.0 <0.186.0"},
-  "devDependencies": {"three": "0.185.1", "@types/three": "0.185.4", "typescript": "5.6.3", "vite": "6.4.3", "esbuild": "^0.25.0", "@fontsource-variable/tektur": "5.2.8"}
+  "peerDependencies": {
+    "three": ">=0.185.0 <0.186.0"
+  },
+  "devDependencies": {
+    "three": "0.185.1",
+    "@types/three": "0.185.4",
+    "typescript": "5.6.3",
+    "vite": "6.4.3",
+    "esbuild": "^0.25.0",
+    "@fontsource-variable/tektur": "5.2.8",
+    "katex": "0.18.5"
+  }
 }
