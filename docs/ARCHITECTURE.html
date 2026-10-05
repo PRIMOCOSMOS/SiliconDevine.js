@@ -1,0 +1,45 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>架构与性能</title><style>body{margin:0;background:#080c12;color:#eef3f8;font:16px/1.8 "Segoe UI","Microsoft YaHei UI",sans-serif}main{max-width:920px;margin:48px auto;padding:0 24px 80px}h1{font-size:36px;line-height:1.3}h2{font-size:23px;margin:48px 0 16px;scroll-margin-top:20px}h3{font-size:19px;margin-top:30px}p,li{color:#d0dce6}a{color:#a9d9f7}pre{padding:20px;background:#151f2b;border-radius:12px;overflow:auto;font:14px/1.7 Consolas,monospace}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}table{border-collapse:collapse;width:100%;min-width:460px;font-size:14px}td,th{padding:12px;text-align:left;border-bottom:1px solid #344452;vertical-align:top}.table-scroll{overflow:auto}nav{padding:18px 0;border-bottom:1px solid #344452}nav a{margin-right:18px;display:inline-block}a:focus-visible{outline:2px solid #b5e2ff;outline-offset:4px}@media(max-width:600px){main{padding:0 16px 48px;margin-top:24px}h1{font-size:28px}h2{font-size:21px}pre{padding:14px}}</style></head><body><main><nav><a href="QUICKSTART.html">使用说明</a><a href="INDEX.html">文档目录</a></nav><h1 id="_1">架构与性能</h1>
+<p><a href="QUICKSTART.html">使用说明</a> · <a href="INDEX.html">文档目录</a></p>
+<h2 id="_2">数据流</h2>
+<pre><code class="language-text">PyTorch 模型 + 示例输入             描述式 TypeScript / JSON
+      ↓ FX / torch.export                  ↓ Builder
+      └────────────── Model IR v1 ──────────┘
+                            ↓ 校验
+                   拓扑排序 + 坐标窗口
+                            ↓
+             张量布局 + 算子标量依赖插件
+                            ↓
+       实例化水晶 / GPU 权重线 / 内嵌标牌 / 交互调度
+</code></pre>
+<p>模型定义、数学依赖、布局和 WebGL 渲染各自独立。没有把某篇论文的名称、固定层数或网站 React 状态写入框架。宿主可以自行加载 IR，不需要执行 Python；Python 仅用于在本地生成 IR。</p>
+<h2 id="_3">继承的视觉约束</h2>
+<ul>
+<li>统一晶体尺寸。数值只改变颜色，不改变元素的形状或大小。</li>
+<li>有符号、对称 asinh 色阶；未知值用独立暗蓝色，当前计算使用淡白高亮。</li>
+<li>同一依赖层的并行节点在同一平面；不同计算步骤沿主干分层。</li>
+<li>权重/偏置在输入和输出之间对齐主干；不把偏置另算一次输出层。</li>
+<li>5D NCDHW 张量保留真实 D 方向。二维数据不伪装成立方体体数据。</li>
+<li>标牌是世界坐标里的固定网格，贴在张量平台前缘；没有引出线，也不随相机自动转向。</li>
+<li>MLP 保留权重网，激活函数有真实曲线；复杂图的当前算子展示逐项依赖，其他算子保留晶体结构。</li>
+<li>卷积感受野用覆盖实际参与坐标的包围体与高亮晶体展示。</li>
+</ul>
+<h2 id="_4">性能机制</h2>
+<ol>
+<li>张量晶体合并到共享 InstancedMesh；基础晶体/边缘和高亮覆盖层分开。基础晶体只在加载时上传，不在每帧重建。</li>
+<li>权重关系用 LineSegments + shader。流动高亮只更新 uniform，稠密场景仍保留较暗连线。</li>
+<li>小型 MLP 保留全部可见权重；复杂图保留一份静态拓扑主干，仅当前算子显示动态数学连线，旧算子的 GPU 对象立即释放。缓存不随浏览无限增长。</li>
+<li>默认单图段 32 算子、8,192 个晶体预算、单张量 128 个可见坐标、当前算子 12,000 条连线预算。晶体预算可设为 512–16,384；一个图段最多 512 张量，超出时明确要求降低 maxNodes。张量窗口使用真实多维坐标；图段边界仍带输入张量。</li>
+<li>DPR 默认封顶 1.5；窗口不可见或页面隐藏时停止渲染。尊重 reduced-motion，启动时暂停自动演示。</li>
+<li>手动相机操作不会触发 fit。只有显式载入/换图段/聚焦/总览改变适配镜头；ResizeObserver 只更新尺寸与 aspect。</li>
+<li><code>dispose()</code> 释放观察器、监听器、材质、纹理、几何体、实例化缓冲和 WebGL renderer。</li>
+</ol>
+<p><strong>预算是明确的取舍，不是宣称“同时显示任意规模完整网络”。</strong> 当前 0.1 使用连续图段控制上限，没有完整的语义聚类 LOD、LOD 跨级插值、远程流式张量分页或 GPU 推理。图格式保留源图，窗口和分段在 UI 中说明。</p>
+<p>默认 WebGL2 / Three.js。WebGPU 不是当前版本的前提；先复用已有稳定渲染机制。源码包不内置第二份 Three.js，示例应用则打包为可离线部署的静态文件。</p>
+<h2 id="_5">官方参考</h2>
+<ul>
+<li><a href="https://docs.pytorch.org/docs/stable/fx.html">PyTorch FX</a>：图捕获与 Interpreter。</li>
+<li><a href="https://docs.pytorch.org/docs/stable/user_guide/torch_compiler/export/api_reference.html">torch.export API</a>：导出程序与函数化计算图。</li>
+<li><a href="https://docs.pytorch.org/tutorials/intermediate/torch_export_tutorial.html">torch.export 教程</a>：输入约束与图捕获边界。</li>
+<li><a href="https://threejs.org/docs/pages/InstancedMesh.html">Three.js InstancedMesh</a>：实例化绘制、实例颜色、资源生命周期。</li>
+</ul>
+<p>版本兼容需通过导出器测试核对；在线文档可能比当前本机 PyTorch 新。</p></main></body></html>

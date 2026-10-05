@@ -1,5 +1,8 @@
 # 图格式与 API
 
+[使用说明](USER_GUIDE.md) · [文档目录](INDEX.md)
+
+
 ## IR v1
 
 ```ts
@@ -67,7 +70,7 @@ registerOperator('square', {
 当前插件范围是依赖、颜色、公式、标量曲线；不是任意 Three.js 场景插件。对特殊网络需要新增渲染原语时，应通过下一版显式接口扩展，避免业务方访问查看器内部状态。
 
 
-## 0.2 新增接口
+## 更新与数据窗口
 
 | 方法 | 功能 |
 | --- | --- |
@@ -82,7 +85,7 @@ getStats() 新增 weight {tensor,index,coordinates,value} 与 sample {input,outp
 
 IR Tensor 新增可选 samples（坐标到数值的映射）和 spatialRank（三维体布局提示）。null/缺失值不变成零。Model 可选 constraints 与 live 元数据。LiveConnection 的完整示例见 LIVE.md。
 
-## 0.3 层级与计算机制
+## 层级与计算机制
 
 - getNavigation() 返回 scope、representation 与当前图段 nodes。
 - setRepresentation('architecture' | 'operators') 在功能架构和原始算子图间切换；parentModule() 返回上一级。
@@ -93,7 +96,7 @@ IR Tensor 新增可选 samples（坐标到数值的映射）和 spatialRank（�
 
 架构分组和动画资源预算不改变模型快照。过大或训练 dropout 的注意力保留融合边界，并在 attrs.boundary_reason 中解释。
 
-## 0.4 代码依据与局部动效
+## 代码依据与局部动效
 
 Model 可选 provenance、functionalUnits；modules 条目增加 qualified 和 code（file/line/sha256）。Operation.attrs 的 projectionRoles、attention、attentionRole、residualInput、sourceFunction、codeTrace 来自捕获图和保守模式识别。Tensor.semantic 标出Q、Kᵀ、V等用途。
 

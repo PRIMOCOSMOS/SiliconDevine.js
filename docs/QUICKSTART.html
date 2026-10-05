@@ -1,119 +1,224 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SiliconDevine 使用说明</title><style>body{margin:0;background:#06080d;color:#edf2fa;font:16px/1.85 "Segoe UI","Microsoft YaHei UI",sans-serif}main{max-width:880px;margin:55px auto;padding:0 25px 60px}h1{font-size:38px;line-height:1.3;letter-spacing:-.025em}h2{margin-top:40px;font-size:24px}pre{overflow:auto;padding:20px;background:#161e2b;border-radius:12px;font:14px/1.8 Consolas,monospace}code{overflow-wrap:anywhere}p,li{color:#c8d5e8}a{color:#aecfff}table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:13px 10px;text-align:left;border-bottom:1px solid #293346}th{color:#edf2fa}@media(max-width:600px){main{margin:30px auto;padding:0 18px 40px}h1{font-size:30px}td,th{padding:10px 6px;font-size:12px}}</style><main><h1>SiliconDevine 使用说明</h1>
-<h2>先打开一个示例</h2>
-<ol>
-<li>双击 <code>D:\SiliconDevine.js\SiliconDevine.exe</code>。</li>
-<li>在「从示例开始」中选 <strong>MLP</strong>。</li>
-<li>确认 Python 环境。你这台电脑已验证可用的是 <code>D:\Anaconda3\python.exe</code>。</li>
-<li>点击「进入模型空间」，稍等片刻，浏览器会自动打开。</li>
-</ol>
-<p>想看 VAE，就选「VAE · PyTorch 官方」「卷积 VAE」或「条件 VAE」。也可以在网页右上角的「模型库」里切换预置模型。</p>
-<p>请把 EXE 和同目录的文件放在一起。平时使用无需启动 Node，也无需重新构建。</p>
-<h2>用自己的模型</h2>
-<p>在 IDE 中新建一个 Python 文件，例如 <code>D:\MyModels\my_model.py</code>，写入：</p>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SiliconDevine.js 使用说明</title><style>body{margin:0;background:#080c12;color:#eef3f8;font:16px/1.8 "Segoe UI","Microsoft YaHei UI",sans-serif}main{max-width:920px;margin:48px auto;padding:0 24px 80px}h1{font-size:36px;line-height:1.3}h2{font-size:23px;margin:48px 0 16px;scroll-margin-top:20px}h3{font-size:19px;margin-top:30px}p,li{color:#d0dce6}a{color:#a9d9f7}pre{padding:20px;background:#151f2b;border-radius:12px;overflow:auto;font:14px/1.7 Consolas,monospace}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}table{border-collapse:collapse;width:100%;min-width:460px;font-size:14px}td,th{padding:12px;text-align:left;border-bottom:1px solid #344452;vertical-align:top}.table-scroll{overflow:auto}nav{padding:18px 0;border-bottom:1px solid #344452}nav a{margin-right:18px;display:inline-block}a:focus-visible{outline:2px solid #b5e2ff;outline-offset:4px}@media(max-width:600px){main{padding:0 16px 48px;margin-top:24px}h1{font-size:28px}h2{font-size:21px}pre{padding:14px}}</style></head><body><main><nav aria-label="文档导航"><a href="INDEX.html">参考目录</a><a href="#2">代码接入</a><a href="#6">看图与操作</a><a href="#8">常见问题</a></nav><h1 id="silicondevinejs">SiliconDevine.js 使用说明</h1>
+<p>在 IDE 中写普通 PyTorch 模型，给出一组示例输入，即可查看它的结构、张量和计算过程。推荐先用启动器连接代码；后续保存文件，网页会自动更新。</p>
+<h2 id="1">1. 准备环境</h2>
+<ul>
+<li>保留 <code>D:\SiliconDevine.js</code> 整个文件夹，EXE 需要其中的网页资源与 Python 工具。</li>
+<li>模型运行环境需要 Python 3.10+、PyTorch 2.6+ 和模型自身依赖。本机已验证环境为 <code>D:\Anaconda3\python.exe</code>，PyTorch 2.9 CPU。</li>
+<li>使用已打包应用无需 Node.js。首次在<strong>模型所用的 Python 环境</strong>安装本地接口：</li>
+</ul>
+<pre><code class="language-powershell">D:\Anaconda3\python.exe -m pip install -e D:\SiliconDevine.js\python
+</code></pre>
+<p>若使用虚拟环境，将命令开头换成该环境的 <code>python.exe</code>。Transformers 示例额外需要 <code>transformers==4.57.1</code>；普通 MLP/CNN 无需此依赖。</p>
+<h2 id="2">2. 推荐：写模型，保存即更新</h2>
+<p>新建 <code>D:\MyModels\my_model.py</code>，复制以下完整示例：</p>
 <pre><code class="language-python">import torch
 from torch import nn
 
+class Encoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(16, 24), nn.GELU(), nn.Linear(24, 8)
+        )
+
+    def forward(self, x):
+        return self.layers(x)
 
 def build_model():
-    model = nn.Sequential(
-        nn.Linear(16, 24),
-        nn.GELU(),
-        nn.Linear(24, 8),
-    )
-    inputs = (torch.randn(2, 16),)
-    return model, inputs
+    torch.manual_seed(42)
+    model = Encoder().eval()
+    x = torch.randn(2, 16)  # Batch=2，每项16个特征
+    return model, (x,)     # 一个输入也要写成元组，注意逗号
 </code></pre>
-<p>这里的 <code>build_model()</code> 返回模型和一组示例输入。框架会运行一次前向计算，读取结构和张量。将 <code>model</code> 换成你的模型，并把 <code>inputs</code> 改成它实际接受的输入；使用已有权重时，在返回前加载权重。</p>
-<p>然后在启动器中：</p>
 <ol>
-<li>点击「选择文件」，选中刚保存的 Python 文件。</li>
-<li>点击「选择环境」，选中安装了模型所需依赖的 <code>python.exe</code>。</li>
-<li>展开「高级设置」，工厂函数填 <code>build_model</code>。普通网络可先用 <code>fx</code>；Transformer、VAE 建议用 <code>export</code>。窗口较小时，设置区域可以滚动。</li>
-<li>点击「进入模型空间」。以后在 IDE 保存代码，网页会自动更新。</li>
+<li>双击 <code>D:\SiliconDevine.js\SiliconDevine.exe</code>。</li>
+<li>选择刚保存的文件，以及安装了模型依赖的 <code>python.exe</code>。</li>
+<li>高级设置：工厂函数填 <code>build_model</code>；这个示例选择 <code>fx</code>。</li>
+<li>点击「进入模型空间」。浏览器自动打开后，修改代码并保存即可刷新。</li>
 </ol>
-<p>更换模型文件或 Python 环境前，先点「停止服务」。关闭启动器会停止本次服务；只关闭网页时服务继续运行。</p>
-<h2>怎么看模型</h2>
-<table>
+<p>框架运行一次前向计算，记录本次输入对应的形状与数值。已有权重可在 <code>build_model()</code> 返回前通过 <code>load_state_dict()</code> 加载。工厂函数中不要启动训练、启动服务或调用 <code>show()</code>。</p>
+<p>更换文件或环境前，先停止服务。捕获失败时保留上一份有效图，错误会显示在界面上；修正代码并再次保存即可。</p>
+<h3 id="_1">多输入、关键字参数与捕获设置</h3>
+<p><code>args</code> 对应 <code>forward</code> 的位置参数，<code>kwargs</code> 对应关键字参数。下面是工厂函数的另一种返回格式；<code>model</code>、<code>x</code>、<code>context</code>、<code>mask</code> 使用你实际创建的对象：</p>
+<pre><code class="language-python">return {
+    &quot;model&quot;: model,
+    &quot;args&quot;: (x, context),
+    &quot;kwargs&quot;: {&quot;attention_mask&quot;: mask},
+    &quot;options&quot;: {
+        &quot;backend&quot;: &quot;execution&quot;,
+        &quot;include_values&quot;: True,
+        &quot;value_limit&quot;: 4096,
+        &quot;snapshot_budget&quot;: 64 * 1024 * 1024,
+    },
+}
+</code></pre>
+<p>文件中的 <code>options.backend</code> 优先于启动器选项。输入尺寸、类型和设备必须与模型匹配；例如嵌入层通常接收整型 Token ID，卷积通常接收 <code>[B,C,H,W]</code>。</p>
+<h2 id="3">3. 选择哪种捕获接口</h2>
+<div class="table-scroll"><table>
 <thead>
 <tr>
-<th>想做什么</th>
-<th>操作</th>
+<th>接口</th>
+<th>适合的情况</th>
+<th>要点</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>旋转、缩放</td>
-<td>拖动模型；滚轮缩放，也可用底部的放大、缩小按钮</td>
+<td><code>fx</code></td>
+<td>普通 MLP、CNN、自定义 <code>nn.Module</code></td>
+<td>先从这里开始，保留模块边界；依赖输入数值的 Python 分支可能无法跟踪。</td>
 </tr>
 <tr>
-<td>看某一块的计算</td>
-<td>把鼠标停在该模块区域</td>
+<td><code>export</code></td>
+<td>需要函数化 ATen 图、声明动态形状约束</td>
+<td>使用 <code>torch.export</code>；不支持的控制流会报错。<code>dynamic_shapes</code> 只用于此接口。</td>
 </tr>
 <tr>
-<td>深入查看</td>
-<td>点击模块，或在「解读与参数」的结构索引中选择</td>
-</tr>
-<tr>
-<td>返回</td>
-<td>「上一级」返回父层；「总览」恢复当前层的整体视角</td>
-</tr>
-<tr>
-<td>暂停、单步查看</td>
-<td>底部暂停按钮和计算进度滑块</td>
-</tr>
-<tr>
-<td>看原理、公式和张量尺寸</td>
-<td>右上角「解读与参数」</td>
-</tr>
-<tr>
-<td>改 Batch 和通道数</td>
-<td>选择「可调 MLP」，打开「解读与参数」，改数值后点「更新模型」</td>
-</tr>
-<tr>
-<td>调整自己的 PyTorch 模型尺寸</td>
-<td>在 IDE 修改示例输入或网络参数并保存</td>
-</tr>
-<tr>
-<td>放大演示区域</td>
-<td>「演示模式」收起辅助界面；「全屏」进入全屏视图</td>
+<td><code>execution</code></td>
+<td>MoE 等依赖实际路由的代码、选定 LLM 子模块</td>
+<td>使用 <code>make_fx</code> 记录本次执行路径；输入改变后需重新捕获，不包含未执行分支。</td>
 </tr>
 </tbody>
-</table>
-<p>颜色对应张量数值；「解读与参数 → 数值色谱」可以查看图例。大张量按坐标窗口显示，可在同一面板中切换窗口。</p>
-<p>VAE 中可以查看均值、对数方差、采样潜变量和解码路径。点击采样模块能展开原始计算；曲线和晶体使用本次 PyTorch 前向计算中的实际数值。示例默认使用随机初始化权重。</p>
-<h2>出问题先看这里</h2>
-<table>
+</table></div>
+<p>三种接口都会实际执行模型。导出器复制模型与输入，以 eval 模式捕获，并恢复随机数状态；它展示前向计算，不展示训练反向传播。自定义 C++/CUDA 算子或特殊容器可能仍需适配，导出失败时先缩小到相关子模块排查。</p>
+<h2 id="4-python">4. 直接从正在写的 Python 程序打开</h2>
+<p>无需工厂函数时，在模型与示例输入准备好后调用：</p>
+<pre><code class="language-python">from silicondevine import show
+
+show(model, (x,), backend=&quot;fx&quot;)
+</code></pre>
+<p>终端会打印本地网页地址，打开该地址即可。此调用默认阻塞，结束时按 Ctrl+C。<code>show()</code> 不监视文件；保存自动更新使用启动器或下一节的 <code>watch</code>。</p>
+<p>需要自己控制生命周期：</p>
+<pre><code class="language-python">server = show(model, (x,), backend=&quot;execution&quot;, block=False)
+try:
+    server.update(model, (new_x,), backend=&quot;execution&quot;)
+    server.wait()
+finally:
+    server.close()
+</code></pre>
+<p>不使用启动器也能监视文件：</p>
+<pre><code class="language-powershell">D:\Anaconda3\python.exe -m silicondevine.watch D:\MyModels\my_model.py --backend execution --static-dir D:\SiliconDevine.js\demo-dist
+</code></pre>
+<p>监视器同时检查模型目录中的 Python 文件。建议给模型建立独立目录；配置 JSON 改动后，重新保存入口 Python 文件触发更新。默认端口为 5182，被占用时添加 <code>--port 5183</code>。启动器会自动寻找空闲端口。</p>
+<h2 id="5-json">5. 导出 JSON，离线查看或分享</h2>
+<pre><code class="language-python">from silicondevine import export_model
+
+export_model(
+    model, (x,), &quot;my-model.sd.json&quot;,
+    backend=&quot;execution&quot;,
+    include_values=True,
+    value_limit=4096,          # 单个张量保存的连续元素上限
+    total_value_limit=500000,  # 本次JSON保存的数值总量上限
+)
+</code></pre>
+<p>网页打开「模型库 → 导入模型 JSON」，选择文件。也可运行项目中的 <code>start-demo.cmd</code> 打开预构建网页；无需启动 IDE 服务。</p>
+<p><code>export_model()</code> 默认不包含数值，想看数值配色与计算结果应设置 <code>include_values=True</code>。导出的窗口之外只保留形状；离线 JSON 无法读取未保存的值。IDE 服务可按需读取快照中保留的坐标，默认快照预算 64 MiB。</p>
+<h2 id="6">6. 如何阅读和操作模型</h2>
+<div class="table-scroll"><table>
 <thead>
 <tr>
-<th>情况</th>
+<th>操作</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>拖动、滚轮或缩放按钮</td>
+<td>旋转、缩放当前视图；适配按钮恢复当前图段全貌。</td>
+</tr>
+<tr>
+<td>悬停模块区域</td>
+<td>优先演示该区域的计算；移开后恢复自动轮播。</td>
+</tr>
+<tr>
+<td>点击模块／层级索引</td>
+<td>聚焦或进入子模块；「上一级」返回。</td>
+</tr>
+<tr>
+<td>功能架构／算子视图</td>
+<td>前者组织有意义的功能段，后者查看捕获到的原始操作。</td>
+</tr>
+<tr>
+<td>暂停、进度、速度</td>
+<td>停住或调整计算演示；全屏用于仔细观察。</td>
+</tr>
+<tr>
+<td>标注：按需／全部／隐藏</td>
+<td>按需显示少量主干标注，悬停或选中后显示该模块；全部模式显示所有标牌。</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>数据晶体</strong>表示可见坐标处的实际数值；权重矩阵使用不同材质。全连接的权重线与同一 W 元素联动。</li>
+<li><strong>数值颜色</strong>按当前张量已知数值的范围归一化；跨张量的相同颜色不保证数值相等。</li>
+<li><strong>注意力主干</strong>保留投影、位置编码、相似度、概率分配、Value 汇聚与输出投影。缩放、掩码、Softmax 可聚合为一个功能段，点击后查看原始步骤。</li>
+<li><strong>按头组织</strong>将通道分成 Head × 每头通道；<strong>Key 对齐</strong>交换 Token/通道轴以计算 QKᵀ；<strong>合并多头</strong>恢复每个 Token 的完整通道。晶体重排与共享展开用于说明坐标变化，元素数值保持不变。</li>
+<li><strong>全息标注固定在对应张量近侧</strong>，位置和尺寸不随镜头重新排位，文字朝向镜头。按需模式控制数量；全部模式保留所有标牌。聚焦时把模块主标注纳入视野，悬停文字会高亮所属结构。</li>
+<li><strong>函数图象</strong>中的输入点位于 x 轴，输出点位于对应曲线上；刻度、曲线和投影线共用坐标。曲线颜色表示函数值。</li>
+<li>界面播放的动效用于解释捕获的数值与依赖，播放速度不等于实际计算耗时。</li>
+</ul>
+<p>张量尺寸来自代码。要改变自己模型的 Batch、通道或 Token 数，请修改输入和模型代码，再保存；网页里的参数控件只用于支持重建的内置示例。</p>
+<h2 id="7">7. 大模型：先看结构，再看真实计算单元</h2>
+<p>模型库提供 DeepSeek-V3、GLM-4.5、MiniMax-M1。总览按原配置表达重复层和专家组；点击后查看代表性 Decoder 的执行图，再进入 Attention、MoE、专家或基础算子。</p>
+<p>内置执行图来自参考实现的原始 forward，使用缩小维度、固定种子、未训练权重。不同层级共享捕获张量 ID。它们不是完整检查点推理：DeepSeek 使用 Transformers 的展开式 MLA；MiniMax Lightning 使用原始 decode 分支并作 CPU 接口适配。<a href="ATOMIC-COMPOSITION.html">实现来源与边界</a> 中有具体说明。</p>
+<p>对自己的大模型，可选两种方式：</p>
+<ul>
+<li>只查看支持家族的完整配置：使用 <code>architecture_from_config(config, family)</code>，适配器为 <code>deepseek_v3</code>、<code>glm45</code>、<code>minimax_m1</code>。见 <a href="LARGE_MODELS.html">配置结构接口</a>。</li>
+<li>查看实际计算：选择能在本机运行的子模块和小输入，交给 <code>export_model</code> 或工厂函数；若要观察已有权重，自己加载对应权重。框架不会自动缩小任意模型。</li>
+</ul>
+<p>显示预算只限制绘图开销，不限制 PyTorch 执行内存。大模型的复制、加载与前向计算仍可能占用大量内存；无须为查看内置示例下载完整权重。</p>
+<h2 id="8">8. 常见问题</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>现象</th>
 <th>处理</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>提示找不到 torch 或其他包</td>
-<td>确认选对 Python 环境，并在该环境安装缺少的包</td>
+<td>找不到 <code>silicondevine</code> / <code>torch</code></td>
+<td>确认启动器选中了正确 Python；在该环境安装依赖与本地接口。</td>
 </tr>
 <tr>
-<td>找不到工厂函数</td>
-<td>检查文件里是否有 <code>build_model()</code>，以及「高级设置」里的名称是否一致</td>
+<td>网页打开但没有模型</td>
+<td>查看服务错误；确认 <code>build_model()</code> 返回 <code>(model, args)</code>，并且服务仍在运行。</td>
 </tr>
 <tr>
-<td>输入形状不匹配</td>
-<td>检查 <code>inputs</code> 的尺寸、数据类型和模型要求，修改后保存</td>
+<td>FX 报控制流错误</td>
+<td>改用 <code>export</code>；若依赖实际输入选择分支，用 <code>execution</code> 或先导出子模块。</td>
 </tr>
 <tr>
-<td>捕获失败</td>
-<td>打开启动器的「运行日志」看具体报错；修好并保存，框架会重试</td>
+<td>缺少数值或窗口无法读取</td>
+<td>导出时启用 <code>include_values</code>；确认 IDE 连接、快照预算及窗口是否被保留。</td>
 </tr>
 <tr>
-<td>浏览器没有自动打开</td>
-<td>等状态显示已连接，再点「打开工作台」</td>
+<td>模块只显示输入输出</td>
+<td>查看「解读与参数 → 算子支持检查」；该操作可能需要数学插件。</td>
 </tr>
 <tr>
-<td>仍看到旧界面</td>
-<td>关闭旧启动器，重新打开本目录的 EXE；网页按 Ctrl+F5 刷新</td>
+<td>图太大、文字太多或卡顿</td>
+<td>返回功能架构、进入子模块、将标注设为按需，减小输入或可见坐标窗口。</td>
+</tr>
+<tr>
+<td>保存后仍是旧图</td>
+<td>捕获失败会保留旧图；查看错误。改 JSON 后重新保存入口 <code>.py</code> 文件。</td>
+</tr>
+<tr>
+<td>更新后仍看到旧界面</td>
+<td>停止旧服务，关闭旧启动器，重新打开项目目录内的 EXE，再刷新网页。</td>
 </tr>
 </tbody>
-</table>
-<p>目前主要展示前向计算。完整反向传播和所有自定义算子的内部动效还未覆盖。其他接入方式见 <a href="LIVE.md">IDE 接入</a>，支持范围见 <a href="SUPPORT.md">SUPPORT.md</a>。</p></main></html>
+</table></div>
+<h2 id="9">9. 前端集成与继续阅读</h2>
+<p>把框架嵌入自己的网页：</p>
+<pre><code class="language-ts">import { SiliconDevineViewer } from 'silicondevine.js';
+const viewer = new SiliconDevineViewer(document.querySelector('#stage')!, {
+  maxCells: 8192, cellsPerTensor: 128, maxConnections: 12000,
+  labels: 'auto', pixelRatio: 1.5,
+});
+viewer.load(graph); // graph 为导入的 .sd.json 对象
+// 页面卸载时：viewer.dispose();
+</code></pre>
+<p>容器需有高度，例如 <code>#stage { height: 650px; }</code>。库通过本地目录安装，尚未发布到 npm；宿主需使用项目声明兼容的 Three.js 版本。运行项目开发环境用 <code>npm install</code>、<code>npm run dev</code>，构建用 <code>npm run build</code>。</p>
+<p>需要更细的资料时，从 <a href="INDEX.html">文档目录</a> 进入；接口、模型来源、支持范围和验证记录各自独立维护。本页是日常使用的主入口。</p></main></body></html>

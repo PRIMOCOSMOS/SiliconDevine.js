@@ -1,3 +1,4 @@
+import { inspectSupport } from '../src/core/support';
 import { SiliconDevineViewer, LiveConnection, defineModel, compileDescription, validateModel, operatorVisual, type Model, type Operation } from '../src';
 import '@fontsource-variable/tektur';
 import './style.css';
@@ -6,7 +7,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 document.querySelector('#app')!.innerHTML = `
 <header><div class="brand"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 36 12v16L20 37 4 28V12Z M4 12l16 9 16-9M20 21v16M12 8l16 9v15"/></svg><div><h1>SiliconDevine<span>.js</span></h1><p>从代码，进入模型。</p></div></div><div class="version">FRAMEWORK / 0.4.0</div></header>
-<main><aside><section><h2>模型来源</h2><label for="example">载入示例</label><select id="example"><option value="live" disabled hidden>本地 IDE · 当前模型</option><option value="declarative">声明式 · 全连接网络</option><option value="mlp">PyTorch · MLP</option><option value="conv2d">PyTorch · 残差卷积</option><option value="conv3d">PyTorch · 3D 卷积</option><option value="attention">PyTorch · 注意力</option><option value="transformer">PyTorch · 原生 Transformer</option><optgroup label="VAE · 变分自编码"><option value="official_vae">VAE · PyTorch 官方原型</option><option value="conv_vae">卷积 VAE · 本地示例</option><option value="conditional_vae">条件 VAE · 本地示例</option></optgroup><optgroup label="上游原始实现"><option value="official_llama">LLaMA · Transformers 原生</option><option value="official_sab">SAB · 作者原代码</option><option value="official_isab">ISAB · 作者原代码</option></optgroup><optgroup label="缩小自建测试模型"><option value="tinygpt">TinyGPT · 因果注意力</option><option value="llama">LLaMA-style · RoPE / GQA</option></optgroup><optgroup label="旧版自建测试模型"><option value="sab">SAB · 集合自注意力</option><option value="isab">ISAB · 诱导点双向聚合</option></optgroup></select><div class="file-row"><label class="button" for="file">导入模型 JSON</label><input type="file" id="file" accept=".json,application/json" hidden><button id="download">导出</button></div><p class="muted" id="source">固定种子演示数值</p></section>
+<main><aside><section><h2>模型来源</h2><label for="example">载入示例</label><select id="example"><option value="live" disabled hidden>本地 IDE · 当前模型</option><option value="declarative">声明式 · 全连接网络</option><option value="mlp">PyTorch · MLP</option><option value="conv2d">PyTorch · 残差卷积</option><option value="conv3d">PyTorch · 3D 卷积</option><option value="spatial">空间采样与分块重组</option><option value="dynamic_conv">动态卷积核</option><option value="conditional_attention">条件交叉注意力</option><option value="attention">PyTorch · 注意力</option><option value="transformer">PyTorch · 原生 Transformer</option><optgroup label="大模型 · 结构模式"><option value="deepseek_v3">DeepSeek-V3</option><option value="glm45">GLM-4.5</option><option value="minimax_m1">MiniMax-M1</option></optgroup><optgroup label="VAE · 变分自编码"><option value="official_vae">VAE · PyTorch 官方原型</option><option value="conv_vae">卷积 VAE · 本地示例</option><option value="conditional_vae">条件 VAE · 本地示例</option></optgroup><optgroup label="上游原始实现"><option value="official_llama">LLaMA · Transformers 原生</option><option value="official_sab">SAB · 作者原代码</option><option value="official_isab">ISAB · 作者原代码</option></optgroup><optgroup label="缩小自建测试模型"><option value="tinygpt">TinyGPT · 因果注意力</option><option value="llama">LLaMA-style · RoPE / GQA</option></optgroup><optgroup label="旧版自建测试模型"><option value="sab">SAB · 集合自注意力</option><option value="isab">ISAB · 诱导点双向聚合</option></optgroup></select><div class="file-row"><label class="button" for="file">导入模型 JSON</label><input type="file" id="file" accept=".json,application/json" hidden><button id="download">导出</button></div><p class="muted" id="source">固定种子演示数值</p></section>
 <details id="code-origin"><summary>代码来源与识别依据</summary><p id="provenance"></p></details><section class="live-panel"><h2>连接本地 IDE</h2><label for="live-url">PyTorch 服务地址</label><input id="live-url" value="http://127.0.0.1:5182" type="url"><div class="file-row"><button id="connect">连接</button><button id="disconnect" disabled>断开</button></div><p id="live-status" class="muted" role="status">运行 start-live.cmd，然后保存模型代码。</p><details><summary>原生 PyTorch 用法</summary><pre>from silicondevine import show
 show(model, (example_input,))
 
@@ -31,7 +32,21 @@ let live: LiveConnection | undefined;
 let liveUpdating = false;
 let navigationSignature = '';
 const stage = el('stage');
+const mechanismToggle=document.createElement('button');mechanismToggle.id='mechanism-toggle';mechanismToggle.hidden=true;mechanismToggle.textContent='展开原子组合';document.querySelector('.navigation')!.append(mechanismToggle);mechanismToggle.onclick=()=>{if(viewer.isMechanism)viewer.showStructure();else viewer.showMechanism();syncNavigation();detail();};
+const stageChoice=document.createElement('select');stageChoice.id='computation-stage';stageChoice.setAttribute('aria-label','计算阶段');stageChoice.hidden=true;document.querySelector('.navigation')!.append(stageChoice);stageChoice.onchange=()=>viewer.setComputationStage(Number(stageChoice.value));
+const tourButton=document.createElement('button');tourButton.id='computation-tour';tourButton.hidden=true;document.querySelector('.navigation')!.append(tourButton);tourButton.onclick=()=>{viewer.setTour(!viewer.isTouring);syncNavigation();};
+const badge=document.createElement('div');badge.id='structure-badge';badge.hidden=true;badge.setAttribute('role','status');document.querySelector('.toolbar>div:first-child')!.append(badge);
 function detail(n?: Operation) {
+    if(viewer.isMechanism){const current=viewer.getDisplayedModel()!;el('detail-title').textContent=n?.name??current.name;el('formula').innerHTML=n?.attrs?.formula?katex.renderToString(String(n.attrs.formula),{throwOnError:false}):n?operatorVisual(n.op).formula:'';el('detail').textContent=String(n?.attrs?.description??(current.notes??[]).join(' '));el('shape').textContent=(n?current.tensors.filter(t=>[...n.inputs,...n.outputs].includes(t.id)):current.tensors.filter(t=>current.inputs.includes(t.id))).map(t=>`${t.semantic??t.id} [${t.shape.join(' × ')}]`).join(' → ');el('support').textContent=String(current.provenance?.source??'');return;}
+    if(model?.architecture){
+        const current=viewer.getDisplayedModel()!,a=model.architecture;
+        el('detail-title').textContent=n?.name??current.name;
+        el('formula').innerHTML=n?.attrs?.formula?katex.renderToString(String(n.attrs.formula),{throwOnError:false}):'';
+        el('detail').textContent=String(n?.attrs?.description??'点击功能模块展开；重复层与专家组采用模板，实例的权重相互独立。玻璃分区概括逻辑张量，不显示虚构数值。');
+        el('shape').textContent=(n?current.tensors.filter(t=>[...n.inputs,...n.outputs,...Object.values(n.parameters??{})].includes(t.id)):current.tensors.filter(t=>current.inputs.includes(t.id)||current.outputs.includes(t.id))).map(t=>`${t.id} [${t.shape.join(' × ')}]`).join(' → ');
+        el('support').textContent=`${a.layers} 层 · ${a.experts} 专家 / 每 Token ${a.topK} · 主干逻辑参数 ${BigInt(a.parameterCount).toLocaleString()}。${model.notes?.[1]??''}`;
+        return;
+    }
     if (!n) {
         el('detail-title').textContent = viewer.getNavigation().scope || '整体计算图';
         el('formula').textContent = '';
@@ -58,16 +73,18 @@ function detail(n?: Operation) {
     }
     el('detail-title').textContent = `${v.label} · ${n.name}`;
     el('formula').textContent = v.formula;
-    el('detail').textContent = `输入 ${n.inputs.join('、')} → 输出 ${n.outputs.join('、')}。来源：${n.source ?? '声明式定义'}。`;
+    el('detail').textContent = String(n.attrs?.description??`输入 ${n.inputs.join('、')} → 输出 ${n.outputs.join('、')}。来源：${n.source ?? '声明式定义'}。`);
+    if(n.attrs?.formula)el('formula').innerHTML=katex.renderToString(String(n.attrs.formula),{throwOnError:false});
     el('shape').textContent = n.outputs.map(id => { const t = model.tensors.find(t => t.id === id)!; return `${id} [${t.shape.join(' × ')}]`; }).join(' / ');
     el('support').textContent = n.op === 'module' ? `${n.attrs?.operatorCount} 个真实算子；已进入 ${n.attrs?.modulePath}。切换算子细节可展开全部计算。` : v.detail === 'exact' ? '按算子定义连接可见窗口中的实际元素。窗口之外的坐标仍保留在模型元数据中。' : '此算子保留实际输入输出与拓扑，内部数学动效尚未实现；可注册专用插件。';
     for (const b of el('outline').querySelectorAll('button'))
         b.setAttribute('aria-current', String(b.dataset.id === n.id));
 }
-const viewer = new SiliconDevineViewer(stage, { onSelect: detail, onStats: s => { syncNavigation(); pageStart = s.pageStart; el('computation').textContent = s.gaussian ? `潜变量 [${s.gaussian.coordinate.join(',')}] · μ ${s.gaussian.mean.toFixed(3)} · σ ${s.gaussian.std.toFixed(3)} · ε ${s.gaussian.epsilon.toFixed(3)} → z ${s.gaussian.sample.toFixed(3)}` : s.receptiveField ? `感受野 · 输出 [${s.receptiveField.output.join(',')}] · ${s.receptiveField.visibleSamples}/${s.receptiveField.totalSamples} 个输入坐标 · 核 ${s.receptiveField.kernel.join('×')}` : s.attention ? `Query ${s.attention.query} · ${s.attention.probabilities.length} 个 Key → 加权汇聚成输出 Token` : s.mechanism ? `${s.mechanism.kind} · 行 ${s.mechanism.row}${s.mechanism.sum !== undefined ? ' · Σp = ' + s.mechanism.sum.toFixed(3) : s.mechanism.rms !== undefined ? ' · RMS = ' + s.mechanism.rms.toFixed(3) : ''}` : s.weight ? `W[${s.weight.coordinates.join(',')}] = ${Number.isFinite(s.weight.value) ? s.weight.value.toFixed(4) : '未知'} · 矩阵 / 连线同步` : s.sample ? `x = ${s.sample.input.toFixed(4)} → y = ${s.sample.output.toFixed(4)}` : ''; el('active').textContent = s.active ? `计算区域 · ${s.active}` : ''; el('stats').textContent = `${s.cells} 个可见元素 · ${s.connections} 条联系 · ${s.drawCalls} 次绘制${s.partialTensors ? ` · ${s.partialTensors} 个坐标窗口` : ''}${s.unknownTensors ? ` · ${s.unknownTensors} 个未导出数值的张量` : ''}`; el<HTMLButtonElement>('prev').disabled = s.pageStart === 0; el<HTMLButtonElement>('next').disabled = s.pageStart + s.visibleNodes >= s.totalNodes; } });
+const viewer = new SiliconDevineViewer(stage, { transparentBackground:true, onSelect: detail, onStats: s => { syncNavigation(); pageStart = s.pageStart; el('computation').textContent = model?.architecture && !viewer.isMechanism ? s.atomic ? `原子组合预览 · ${s.atomic.atoms} 个基础算子 · 缩小维度教学数据 · 点击展开` : '结构通路演示 · 未加载权重 · 分区代表逻辑张量' : s.gaussian ? `潜变量 [${s.gaussian.coordinate.join(',')}] · μ ${s.gaussian.mean.toFixed(3)} · σ ${s.gaussian.std.toFixed(3)} · ε ${s.gaussian.epsilon.toFixed(3)} → z ${s.gaussian.sample.toFixed(3)}` : s.receptiveField ? `感受野 · 输出 [${s.receptiveField.output.join(',')}] · ${s.receptiveField.visibleSamples}/${s.receptiveField.totalSamples} 个输入坐标 · 核 ${s.receptiveField.kernel.join('×')}` : s.attention ? `Query ${s.attention.query} · ${s.attention.probabilities.length} 个 Key → 加权汇聚成输出 Token` : s.mechanism ? `${s.mechanism.kind} · 行 ${s.mechanism.row}${s.mechanism.sum !== undefined ? ' · Σp = ' + s.mechanism.sum.toFixed(3) : s.mechanism.rms !== undefined ? ' · RMS = ' + s.mechanism.rms.toFixed(3) : ''}` : s.weight ? `W[${s.weight.coordinates.join(',')}] = ${Number.isFinite(s.weight.value) ? s.weight.value.toFixed(4) : '未知'} · 矩阵 / 连线同步` : s.sample ? `x = ${s.sample.input.toFixed(4)} → y = ${s.sample.output.toFixed(4)}` : ''; el('active').textContent = s.active ? `计算区域 · ${model?.architecture ? viewer.getNavigation().nodes.find(n=>n.id===s.active)?.name??s.active : s.active}` : ''; el('stats').textContent = `${s.cells} 个${model?.architecture&&!viewer.isMechanism?'逻辑分区':'可见元素'} · ${s.connections} 条联系 · ${s.drawCalls} 次绘制${s.partialTensors&&!model?.architecture ? ` · ${s.partialTensors} 个坐标窗口` : ''}${s.unknownTensors ? ` · ${s.unknownTensors} 个未导出数值的张量` : ''}`; el<HTMLButtonElement>('prev').disabled = s.pageStart === 0; el<HTMLButtonElement>('next').disabled = s.pageStart + s.visibleNodes >= s.totalNodes; } });
 // Debug information is read-only; a host application can use getStats() directly.
 Object.assign(window, { siliconDevine: { viewer, get model() { return model; } } });
 function error(e: unknown) { el('error').hidden = false; el('error').textContent = e instanceof Error ? e.message : String(e); }
+const supportPanel=document.createElement('details');supportPanel.id='operator-support';supportPanel.innerHTML='<summary>算子支持检查</summary><pre></pre>';document.querySelector('.inspector')!.append(supportPanel);
 function load(m: unknown) {
     const valid = (m as {
         format?: string;
@@ -77,11 +94,18 @@ function load(m: unknown) {
     else
         viewer.load(valid);
     model = valid;
+    const support=inspectSupport(model);
+    supportPanel.querySelector('pre')!.textContent=model.architecture?'当前为配置结构图；数值原理页使用独立 PyTorch 演示。':`数学依赖：${support.withDependencies} / ${support.total} 个算子\n`+(support.boundary.length?support.boundary.map(n=>`${n.id} · ${n.source}\n${n.reason}`).join('\n\n'):'当前图中的算子均有依赖映射。')+'\n\n'+support.notes.join('\n');
     el('error').hidden = true;
     el('model-name').textContent = ({official_vae:'VAE · 高斯潜空间',conv_vae:'卷积 VAE',conditional_vae:'条件 VAE',official_llama:'LLaMA · 原生架构',official_sab:'SAB · 集合自注意力',official_isab:'ISAB · 诱导点注意力'} as Record<string,string>)[model.name] ?? model.name;
     if (!liveUpdating) modelEntrance(stage);
     el('node-count').textContent = String(model.nodes.length);
     el('source').textContent = `${model.producer?.backend ?? 'JSON'} · ${model.producer?.version ?? 'v1 图格式'}`;
+    document.body.dataset.modelMode=model.architecture?'structure':'numeric';
+    el('structure-badge').hidden=!model.architecture;
+    el('structure-badge').textContent=model.architecture?`结构模式 · ${model.architecture.layers} 层 · ${(Number(model.architecture.parameterCount)/1e9).toFixed(2)}B 主干参数 · 未加载权重`:'';
+    el<HTMLSelectElement>('representation').disabled=!!model.architecture;
+    el('tensor-select').closest('details')!.hidden=!!model.architecture;
     refreshSelectors();
     navigationSignature = '';
     syncNavigation();
@@ -174,13 +198,13 @@ function refreshSelectors() {
     el('modules').replaceChildren();
     el<HTMLSelectElement>('modules').add(new Option('全部模块', ''));
     for (const path of viewer.getModules())
-        el<HTMLSelectElement>('modules').add(new Option('　'.repeat(path.split('.').length - 1) + path, path));
+        el<HTMLSelectElement>('modules').add(new Option(model.architecture?.scopes[path]?.name ?? ('　'.repeat(path.split('.').length - 1) + path), path));
     el('tensor-select').replaceChildren();
-    for (const t of model.tensors)
+    for (const t of viewer.getDisplayedModel()?.tensors??model.tensors)
         el<HTMLSelectElement>('tensor-select').add(new Option(`${t.id} [${t.shape.join('×')}]`, t.id));
     syncOrigin();
 }
-function syncOrigin() { const t = model.tensors.find(t => t.id === el<HTMLSelectElement>('tensor-select').value); el<HTMLInputElement>('origin').value = t?.shape.map(() => 0).join(',') ?? ''; }
+function syncOrigin() { const t = (viewer.getDisplayedModel()?.tensors??model.tensors).find(t => t.id === el<HTMLSelectElement>('tensor-select').value); el<HTMLInputElement>('origin').value = t?.shape.map(() => 0).join(',') ?? ''; }
 el<HTMLSelectElement>('tensor-select').onchange = syncOrigin;
 el<HTMLSelectElement>('modules').onchange = e => { viewer.showModule((e.target as HTMLSelectElement).value); syncNavigation(); detail(); };
 el('window-apply').onclick = async () => {
@@ -227,20 +251,26 @@ el<HTMLSelectElement>('speed').onchange = e => viewer.setSpeed(Number((e.target 
 el<HTMLInputElement>('progress').oninput = e => { viewer.setProgress(Number((e.target as HTMLInputElement).value) / 100); el('play').textContent = '播放'; };
 function syncNavigation() {
     if (model)
-        el('provenance').textContent = model.provenance ? JSON.stringify(model.provenance, null, 2) : '原生 PyTorch 捕获；功能识别根据实际运算依赖，未匹配结构保留原始算子。';
-    const nav = viewer.getNavigation(), signature = [nav.scope, nav.function ?? '', nav.representation, ...nav.nodes.map(n => n.id)].join('|');
+        el('provenance').textContent = viewer.getDisplayedModel()?.provenance ? JSON.stringify(viewer.getDisplayedModel()!.provenance, null, 2) : '原生 PyTorch 捕获；功能识别根据实际运算依赖，未匹配结构保留原始算子。';
+    const nav = viewer.getNavigation(), signature = [nav.scope, nav.mechanism,nav.stage, nav.function ?? '', nav.representation, ...nav.nodes.map(n => n.id)].join('|');
+    const stages=viewer.computationStages;stageChoice.hidden=tourButton.hidden=!stages.length;tourButton.textContent=viewer.isTouring?'停止巡航':'演示巡航';tourButton.setAttribute('aria-pressed',String(viewer.isTouring));
+    const mechanismButton=el<HTMLButtonElement>('mechanism-toggle');mechanismButton.hidden=!viewer.isMechanism&&!viewer.mechanismAvailable;mechanismButton.textContent=viewer.isMechanism?'返回结构':'展开原子组合';
+    if(model?.architecture)el('structure-badge').textContent=viewer.isSourceExecution?'源码执行组合 · 原始 forward · 缩小配置 / 未训练参数':viewer.isMechanism?'计算演示 · 缩小维度 · PyTorch 实算 · 未训练参数':`结构模式 · ${model.architecture.layers} 层 · ${(Number(model.architecture.parameterCount)/1e9).toFixed(2)}B 主干参数 · 未加载权重`;
+
     if (signature === navigationSignature)
         return;
     navigationSignature = signature;
-    el('scope-label').textContent = (nav.function ?? nav.scope) || '完整模型';
-    el<HTMLButtonElement>('parent-module').disabled = !nav.scope && !nav.function;
+    refreshSelectors();
+    stageChoice.replaceChildren(new Option('完整原子组合','-1'),...stages.map((s,i)=>new Option(s.name,String(i))));stageChoice.value=String(nav.stage);
+    el('scope-label').textContent = (nav.scopeName ?? nav.function ?? nav.scope) || '完整模型';
+    el<HTMLButtonElement>('parent-module').disabled = !nav.scope && !nav.function && !nav.mechanism;
     el<HTMLSelectElement>('representation').value = nav.representation;
     el<HTMLSelectElement>('modules').value = nav.scope;
     el('outline').replaceChildren();
     for (const n of nav.nodes) {
         const b = document.createElement('button');
         b.dataset.id = n.id;
-        b.textContent = `${n.op === 'module' ? n.attrs?.moduleType : operatorVisual(n.op).label} · ${n.name.split('.').slice(-2).join('.')}`;
+        b.textContent = n.op==='structure'?`${n.name}${n.attrs?.scopeRef||n.attrs?.mechanismRef?' ›':''}`:`${n.op === 'module' ? n.attrs?.moduleType : operatorVisual(n.op).label} · ${n.name.split('.').slice(-2).join('.')}`;
         b.title = n.source ?? n.op;
         b.onclick = () => { viewer.focus(n.id); syncNavigation(); };
         el('outline').append(b);
@@ -248,3 +278,5 @@ function syncNavigation() {
 }
 el('parent-module').onclick = () => { viewer.parentModule(); syncNavigation(); detail(); };
 el<HTMLSelectElement>('representation').onchange = e => { viewer.setRepresentation((e.target as HTMLSelectElement).value as 'architecture' | 'operators'); syncNavigation(); };
+
+import './keynote.css';

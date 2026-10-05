@@ -49,11 +49,37 @@ with tempfile.TemporaryDirectory(prefix='sd-ui-') as folder:
     window.withdraw()
     window.tk.call('tk','scaling',scale*96/72)
     app=launcher.Application(window)
-    window.geometry('+40+40')
-    window.attributes('-topmost',True)
+    window.geometry('+4000+4000')
+    # Keep diagnostic windows off-screen; PrintWindow captures only this HWND.
     window.deiconify()
     window.update()
-    for state in ('idle','error'):
+    app.motion_button.invoke()
+    assert app.keynote_stage.job is None
+    app.motion_button.invoke()
+    stage=app.keynote_stage
+    item_count=len(stage.find_all())
+    stage.pointer=(1.,-.5)
+    stage.phase=1.
+    start=time.perf_counter()
+    for _ in range(100):stage.move_lights()
+    frame_ms=(time.perf_counter()-start)*10
+    assert len(stage.find_all())==item_count
+    assert 0<stage.offset[0]<=4*app.ui_scale
+    app.set_visual_state('loading')
+    assert app.progress.active
+    app.motion_button.invoke()
+    assert stage.job is None and app.progress.job is None
+    frozen=stage.phase
+    window.update()
+    assert stage.phase==frozen
+    app.motion_button.invoke()
+    window.withdraw();window.update()
+    assert stage.job is None and app.progress.job is None
+    window.deiconify();window.update()
+    assert stage.job is not None and app.progress.job is not None
+    stage.pointer=(0.,0.)
+    for state in ('idle','ready','error'):
+        app.set_visual_state(state)
         if state=='error':
             app.status.set('模型捕获失败。查看下方日志，修改代码后保存即可重试。')
             app.set_visual_state('error')
@@ -71,7 +97,10 @@ with tempfile.TemporaryDirectory(prefix='sd-ui-') as folder:
             assert 0<=x and x+widget.winfo_width()<=window.winfo_width(),(scale,state,widget,x)
             assert 0<=y and y+widget.winfo_height()<=window.winfo_height(),(scale,state,widget,y)
         capture(window,out/f'launcher-{scale}-{state}.png')
-        report.append(dict(scale=scale,state=state,size=[window.winfo_width(),window.winfo_height()]))
+        report.append(dict(scale=scale,state=state,size=[window.winfo_width(),window.winfo_height()],effect_items=item_count,frame_ms=round(frame_ms,3)))
+    stage.motion_allowed=False
+    stage.set_motion(True)
+    assert not stage.motion and stage.job is None
     app.close()
     assert not callback_errors,callback_errors
 print(json.dumps(report))

@@ -1,0 +1,64 @@
+{
+  "deepseek_v3": {
+    "repository": "https://github.com/deepseek-ai/DeepSeek-V3",
+    "commit": "9b4e9788e4a3a731f7567338ed15d3ec549ce03b",
+    "files": [
+      {
+        "path": "inference/model.py",
+        "url": "https://raw.githubusercontent.com/deepseek-ai/DeepSeek-V3/9b4e9788e4a3a731f7567338ed15d3ec549ce03b/inference/model.py",
+        "sha256": "fdb7995bc234badbf0011b5af8cf391be94343abc51305428cb9a04452116f02"
+      },
+      {
+        "path": "inference/configs/config_671B.json",
+        "url": "https://raw.githubusercontent.com/deepseek-ai/DeepSeek-V3/9b4e9788e4a3a731f7567338ed15d3ec549ce03b/inference/configs/config_671B.json",
+        "sha256": "d21d797509598ffaa7c22686abdf3a94e38f31a6193dc158fffe0a6fb6ef5010"
+      },
+      {
+        "path": "LICENSE-CODE",
+        "url": "https://raw.githubusercontent.com/deepseek-ai/DeepSeek-V3/9b4e9788e4a3a731f7567338ed15d3ec549ce03b/LICENSE-CODE",
+        "sha256": "1c8f573e830ca9b3ebfeb7ace1823146e22b66f99ee223840e7637c9e745e1c7"
+      }
+    ]
+  },
+  "minimax_m1": {
+    "repository": "https://github.com/MiniMax-AI/MiniMax-M1",
+    "commit": "2abb4f45a9df4154b4bde024d51874bd127edcee",
+    "files": [
+      {
+        "path": "modeling_minimax_m1.py",
+        "url": "https://raw.githubusercontent.com/MiniMax-AI/MiniMax-M1/2abb4f45a9df4154b4bde024d51874bd127edcee/modeling_minimax_m1.py",
+        "sha256": "1165ae9d27d89a9f8f306103606ee51b811ee102e3e9bb3e112860c7454d52e3"
+      },
+      {
+        "path": "configuration_minimax_m1.py",
+        "url": "https://raw.githubusercontent.com/MiniMax-AI/MiniMax-M1/2abb4f45a9df4154b4bde024d51874bd127edcee/configuration_minimax_m1.py",
+        "sha256": "72964d267eafba6feb16432441287ac13241f384f256949d37a088bf71117303"
+      },
+      {
+        "path": "LICENSE",
+        "url": "https://raw.githubusercontent.com/MiniMax-AI/MiniMax-M1/2abb4f45a9df4154b4bde024d51874bd127edcee/LICENSE",
+        "sha256": "9b01816663fa3c027bc8c0c878361b6a0e5c7bff16e25c4fc7b1ae2822cef102"
+      }
+    ],
+    "config": {
+      "repository": "https://huggingface.co/MiniMaxAI/MiniMax-M1-80k",
+      "commit": "8d1494b1a260e22040d5b9b2eb332eb44500b34d",
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M1-80k/resolve/8d1494b1a260e22040d5b9b2eb332eb44500b34d/config.json",
+      "sha256": "de9574bcaf3586337a2b2ca5755ade806e9dab521056ca1f12b8efa7de352921"
+    }
+  },
+  "glm45": {
+    "config": {
+      "repository": "https://huggingface.co/zai-org/GLM-4.5",
+      "commit": "cbb2c7cfb52fa128a9660cb1a7a78e017899e115",
+      "url": "https://huggingface.co/zai-org/GLM-4.5/resolve/cbb2c7cfb52fa128a9660cb1a7a78e017899e115/config.json",
+      "sha256": "a5dbd07371a8a51b0013a63a7a70543a7094af1a9598812b537133e6da78dda7"
+    },
+    "implementation": {
+      "repository": "https://github.com/huggingface/transformers",
+      "version": "4.57.1",
+      "path": "src/transformers/models/glm4_moe/modeling_glm4_moe.py",
+      "sha256": "6a89edd8180b7efef6b5df07ddc9d4a74d73a5c52eb445c7e86634fdca0eb42a"
+    }
+  }
+}

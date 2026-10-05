@@ -60,7 +60,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description='SiliconDevine desktop launcher')
     parser.add_argument('--self-test',type=Path,help='Write a local startup diagnostic report and exit')
     parser.add_argument('--python',help='Python interpreter for the diagnostic')
-    parser.add_argument('--preset',default='MLP',choices=['MLP','TinyGPT','LLaMA · Transformers','SAB · 作者实现','ISAB · 作者实现','VAE · PyTorch 官方','卷积 VAE','条件 VAE'])
+    parser.add_argument('--preset',default='MLP',choices=['MLP','TinyGPT','LLaMA · Transformers','SAB · 作者实现','ISAB · 作者实现','VAE · PyTorch 官方','卷积 VAE','条件 VAE','DeepSeek-V3','GLM-4.5','MiniMax-M1','动态卷积核','条件注意力'])
     args=parser.parse_args()
     launcher.enable_high_dpi()
     if args.self_test:

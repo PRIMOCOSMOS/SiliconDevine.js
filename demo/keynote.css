@@ -1,0 +1,58 @@
+/* Optical framing belongs to the shell; scientific colors remain in the renderer. */
+body{background:radial-gradient(ellipse at 75% -20%,#1b2539 0%,#06080d 48%)}
+header{position:relative;z-index:3;background:transparent}
+header:after{content:'';position:absolute;bottom:0;left:40px;right:40px;height:1px;background:linear-gradient(90deg,#75839136,transparent 48%,#75839124);pointer-events:none}
+.brand>svg{filter:drop-shadow(0 2px 8px #afdcff38)}
+.brand h1{font-weight:400}
+.header-actions button{transition:background .18s,color .18s,box-shadow .18s}
+.header-actions button[aria-expanded=true],#presentation{background:linear-gradient(130deg,#eaf1f9,#b9ccdf);color:#172331}
+.header-actions button:hover{color:#fff;background:#273349}
+.header-actions button[aria-expanded=true]:hover,#presentation:hover{color:#111a25;background:#fff}
+.workspace{isolation:isolate}
+.toolbar{position:relative;z-index:2}
+.toolbar strong{font-size:clamp(32px,3.2vw,52px);letter-spacing:-.035em}
+#stage{background:radial-gradient(ellipse at 50% 45%,#111e305c 0%,#080e1800 62%);border-radius:0}
+#stage:before{content:'';position:absolute;z-index:-1;inset:7% 10%;background:radial-gradient(ellipse at 48% 0%,#8cb7ee18,transparent 48%),radial-gradient(ellipse at 50% 98%,#80b3df12,transparent 48%);transform-origin:center;animation:stage-light 14s ease-in-out infinite;pointer-events:none}
+#stage:after{bottom:1px;left:6%;right:6%;background:linear-gradient(90deg,transparent,#8ea8c865 36%,#e0edfd88 50%,#8ea8c84d 64%,transparent)}
+.stage-dock{background:linear-gradient(150deg,#303b49db,#141a23f5 42%,#10161e);box-shadow:0 22px 52px -22px #000c;padding-top:15px;isolation:isolate}
+.stage-dock:before{content:'';position:absolute;inset:0 20px auto;height:1px;background:linear-gradient(90deg,transparent,#d2e4f36b 36%,#d2e4f326 70%,transparent);pointer-events:none}
+.controls #play{background:linear-gradient(125deg,#fff,#c9dbe9);transition:background .15s,transform .15s}
+.controls #play:hover{background:#fff;transform:translateY(-1px)}
+.controls button:active{transform:translateY(1px)}
+.timeline input[type=range]{accent-color:#c6e0f5;cursor:pointer}
+.inspector{background:linear-gradient(155deg,#1c2534,#0c121c 35%);box-shadow:-18px 12px 55px -30px #0009}
+.effect-preferences{margin-top:22px;padding-top:20px;border-top:1px solid #2c3647}
+.effect-preferences label{display:block;margin-bottom:8px;font-size:12px;color:#e1eaf6}
+.effect-preferences p{color:#aebdd0;font-size:11px;line-height:1.8}
+aside{position:relative;background:radial-gradient(ellipse at 12% 38%,#10223688,transparent 45%),#06080d;gap:60px}
+.library-hero{position:relative;align-self:start;isolation:isolate}
+.library-hero h2{font-size:clamp(56px,5.6vw,84px);line-height:1.03;max-width:7em;margin-bottom:0;position:relative;z-index:1}
+.library-hero h2 em{color:#f0f7ff;font-style:normal}
+.keynote-object{position:relative;height:350px;width:min(100%,550px);margin:-8px 0 -15px;isolation:isolate;contain:layout paint}
+.keynote-object:before{content:'';position:absolute;inset:15% 0 0;z-index:-1;background:radial-gradient(ellipse at 47% 50%,#35577555,transparent 63%)}
+.keynote-object:after{content:'';position:absolute;bottom:12%;left:15%;right:15%;height:7%;background:radial-gradient(ellipse,#0d1424,#0000 70%);pointer-events:none}
+.keynote-object canvas{width:100%;height:100%;display:block}
+.keynote-fallback{background:url('./optical-core.png') center/contain no-repeat}
+.library-hero p{position:relative;z-index:1;font-size:14px;line-height:1.85;max-width:44ch}
+.library-hero #library-return{margin-top:20px;background:transparent;color:#e8f3ff;padding:0 0 8px;border-radius:0;display:flex;align-items:center;gap:20px}
+.library-hero #library-return svg{transition:transform .3s var(--ease)}
+.library-hero #library-return:hover svg{transform:translateX(6px)}
+.model-family{transition:border-color .25s,background .25s}
+.model-family:hover{border-color:#6c8396}
+.model-family>summary{min-height:72px}
+.family-diagram{transition:color .3s,transform .4s var(--ease)}
+.model-family[open] .family-diagram{transform:scale(1.08);color:#d5eafa}
+.family-content button{background:linear-gradient(130deg,#1b2634,#121922);transition:background .2s,color .2s,transform .2s}
+.family-content button:hover{background:#2b3d52;color:#fff;transform:translateX(3px)}
+.family-content button svg{opacity:.65}
+.family-content button:hover svg{opacity:1}
+body[data-effects=quiet] *,body[data-effects=off] *{animation:none!important;transition:none!important}
+body[data-effects=off] #stage{background:#06080d}
+body[data-effects=off] #stage:before,body[data-effects=off] .keynote-object:before{display:none}
+body[data-catalog=open] #stage:before,body[data-hidden=true] #stage:before{animation-play-state:paused}
+@keyframes stage-light{0%,100%{opacity:.58;transform:scale(.97)}50%{opacity:1;transform:scale(1.03)}}
+@media(max-width:1100px){.keynote-object{height:300px}.toolbar strong{font-size:32px}aside{gap:38px}}
+@media(max-width:760px){header:after{left:18px;right:18px}.toolbar strong{font-size:28px}.library-hero h2{font-size:60px}.keynote-object{height:265px;margin:0 0 -15px;width:100%}.library-hero{width:100%}.library-hero p{font-size:13px}.model-family>summary{min-height:60px}.stage-dock{padding-top:12px}.inspector{box-shadow:none}.effect-preferences p{font-size:12px}}
+@media(prefers-reduced-motion:reduce){#stage:before{animation:none}.family-diagram,.family-content button,.controls #play{transition:none}}
+
+.library-hero .unbroken{white-space:nowrap}

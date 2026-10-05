@@ -1,5 +1,8 @@
 # 代码为依据的模型接入 · 0.4
 
+[使用说明](USER_GUIDE.md) · [文档目录](INDEX.md)
+
+
 启动器选择「SAB · 作者实现」「ISAB · 作者实现」或「LLaMA · Transformers」。网页在「上游原始实现」分组中提供离线捕获。examples/official_models.py 只实例化源类、配置尺寸和输入，不重写 forward。
 
 ## 来源与运行边界

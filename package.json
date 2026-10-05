@@ -1,6 +1,6 @@
 {
   "name": "silicondevine.js",
-  "version": "0.5.0",
+  "version": "0.7.1",
   "type": "module",
   "description": "Crystal tensor visualization for PyTorch computational graphs",
   "main": "./dist/silicondevine.js",
@@ -27,7 +27,8 @@
     "test:browser": "node tests/browser-v05.mjs",
     "test:llm:browser": "node tests/browser-llm.mjs",
     "test:mechanism:browser": "node tests/browser-mechanism.mjs",
-    "test:v04:browser": "node tests/browser-v04.mjs"
+    "test:v04:browser": "node tests/browser-v04.mjs",
+    "test:api": "python tests/export_api.py && node tests/api-support.mjs && python tests/export_spatial.py && node tests/spatial-support.mjs"
   },
   "peerDependencies": {
     "three": ">=0.185.0 <0.186.0"

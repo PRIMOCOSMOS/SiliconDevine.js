@@ -14,3 +14,24 @@ body[data-presentation=true] .workspace{padding-left:22px;padding-right:22px;gri
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 .toolbar strong,.library-hero h2,.model-family summary strong{font-family:"Tektur Variable","ZCOOL QingKe HuangYou",sans-serif;font-weight:400}
+
+#structure-badge{position:absolute;top:94px;left:52px;color:#b2c7da;font:11px/1.6 "Segoe UI",sans-serif;letter-spacing:.04em;pointer-events:none;max-width:calc(100% - 100px)}
+#structure-badge[hidden]{display:none}body[data-model-mode=structure] .color-key summary{font-size:0}body[data-model-mode=structure] .color-key summary:after{content:"结构颜色 · 功能分类";font-size:12px}body[data-model-mode=structure] .color-key .legend{display:none}
+@media(max-width:760px){#structure-badge{top:112px;left:18px;font-size:9px;max-width:calc(100% - 36px)}}
+
+.tensor-role-key{font-size:11px;line-height:1.8;color:#bac8d8}
+
+/* Model identity and provenance share normal flow, including long translated names. */
+#structure-badge{position:static;margin-top:6px;max-width:100%;font-size:11px;line-height:1.5;letter-spacing:0;overflow-wrap:anywhere}
+.workspace{grid-template-rows:minmax(132px,auto) minmax(340px,1fr) 148px}
+.toolbar{padding:16px 0;align-items:center}.toolbar #active{margin-top:8px;line-height:1.5;overflow-wrap:anywhere}
+.navigation{flex:0 1 440px;max-width:44%;gap:6px 10px}.navigation>*{max-width:100%;min-width:0}
+.navigation #scope-label{line-height:1.5}.navigation #computation-stage{max-width:260px}
+body[data-presentation=true] .workspace{grid-template-rows:minmax(96px,auto) minmax(340px,1fr) 120px}
+@media(max-width:760px){
+ .workspace,.workspace:has(.inspector:not([hidden])){grid-template-rows:auto minmax(350px,1fr) 174px}
+ .workspace:has(.inspector:not([hidden])){grid-template-rows:auto 420px 174px auto}
+ .toolbar{padding:16px 0;gap:14px}.navigation{flex:initial;max-width:100%;width:100%}
+ #structure-badge{font-size:10px;margin-top:5px}.navigation #computation-stage{max-width:100%}
+ body[data-presentation=true] .workspace{grid-template-rows:auto minmax(350px,1fr) 130px}
+}

@@ -19,6 +19,11 @@ def capture_file(file, factory, destination, backend):
     if factory not in module or not callable(module[factory]):
         raise ValueError(f'Define {factory}() returning (model, args) or a dictionary.')
     result = module[factory]()
+    if isinstance(result, dict) and result.get('format') == 'silicondevine' and result.get('architecture'):
+        Path(destination).mkdir(parents=True, exist_ok=True)
+        result['live'] = {'tensorWindows':False, 'available':[]}
+        Path(destination, 'capture.json').write_text(json.dumps({'model': result, 'manifest': {}}, allow_nan=False), encoding='utf-8')
+        return
     specification = result if isinstance(result, dict) else {'model': result[0], 'args': result[1]}
     options = dict(specification.get('options', {}))
     options.setdefault('backend', backend)
@@ -33,7 +38,7 @@ def main():
     parser = argparse.ArgumentParser(description='Live PyTorch → SiliconDevine browser viewer')
     parser.add_argument('file', type=Path)
     parser.add_argument('--factory', default='build_model')
-    parser.add_argument('--backend', choices=['fx','export'], default='fx')
+    parser.add_argument('--backend', choices=['fx','export','execution'], default='fx')
     parser.add_argument('--port', type=int, default=5182)
     parser.add_argument('--static-dir', type=Path)
     parser.add_argument('--timeout', type=float, default=90)

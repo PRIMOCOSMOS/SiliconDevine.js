@@ -196,9 +196,9 @@ Playback, overview, zoom, label visibility, speed and fullscreen share the upper
 
 ### Crystal Stage and Appearance Motion
 
-Model replacement uses an 800ms opacity/blur/scale reveal; library opening uses a 480ms opacity and vertical reveal. Both use `cubic-bezier(.16,1,.3,1)`. Control colors transition in 200ms, family expand icons rotate in 400ms, and loading status pulses only while loading.
+Model replacement uses an 800ms opacity/brightness/scale reveal; library opening uses a 620ms clip reveal. Both use `cubic-bezier(.16,1,.3,1)`. Control colors transition in 200ms, family expand icons rotate in 400ms, and loading status pulses only while loading.
 
-The workbench removes shell animation under `prefers-reduced-motion` and initially pauses model playback. Hidden-page CSS animations pause. The three native orbit light markers check Windows animation preferences and stop their timer when hidden; the antialiased orbit body stays static. The native capture line conveys indeterminate activity, not a measured completion percentage.
+The workbench removes shell animation under `prefers-reduced-motion` and initially pauses model playback. Hidden-page CSS animations pause. The native projected light trail checks Windows animation preferences and stops its timer when hidden; the high-resolution optical body stays static. The native capture line conveys indeterminate activity, not a measured completion percentage.
 
 ## Do's and Don'ts
 
@@ -218,3 +218,32 @@ The workbench removes shell animation under `prefers-reduced-motion` and initial
 - **Don't** recolor numerical tensors to match category or shell accents.
 - **Don't** imply a measured capture percentage with an indeterminate indicator.
 
+
+## Large model extension · v0.6
+
+Structure mode preserves the established vertical crystal stage. Repeated stacks, attention rings, expert fans and recurrence loops identify functional templates. Etched thin matrices distinguish parameters from data cubes without changing numeric tint or weight-line linkage. Structure-only semantic color is explicitly separated from numerical color. At most one active scope is built; hover locks local flows and click enters a referenced template. Logical partition labels and a persistent mode badge prevent schematic animation being read as measured inference.
+
+
+## Optical refinement · v0.6.1
+
+The library uses a silver split torus around a faceted optical core. This artwork is branding, separate from scientific tensors. Room reflections and restrained cold light supply material depth without postprocessing bloom. The workbench reveals the same dark optical field through an alpha renderer; world-space labels have transparent backgrounds.
+
+The library artwork renders at 20 fps with DPR capped at 1.5, initializes only when visible, and stops offscreen or when the document is hidden. Full, quiet and off settings persist locally. Reduced-motion overrides full. Native artwork shares the exported scene at 400/600/800 pixels; only a short projected light trail updates, with cached image geometry. Native system animation settings and the visible motion toggle control its timer.
+
+To regenerate native artwork, serve the project on port 5198, run tests/render-keynote-assets.mjs, then tests/build-optical-assets.py. Both desktop and mobile layouts are checked alongside native 100% and 150% scaling.
+
+
+## Numerical mechanism bridge · v0.7
+
+The large-model structure remains a bounded source-configured overview. Composite modules expose a miniature dependency skeleton of their actual template; independent instances retain explicit repeat counts. Internal fragments carry functional colors and bounded moving connections. They denote structure, never invented activation values.
+
+A computation view is a peer of its structural scope, reached by one toggle or a terminal operator click. It uses fully evaluated small PyTorch graphs with persistent data-origin labeling. Long graphs have named computation stages; complete graphs remain available. Stages preserve real boundary tensor values and source dependencies. Only one view is allocated.
+
+Explicit focus uses a 720ms quartic ease-out camera flight. Orbit interaction or wheel zoom cancels it. Hover changes computation without moving the camera. Optional 12-second stage tours pause over the model and stop on direct camera input. Reduced-motion uses immediate camera changes. RoPE pair arcs, routing candidate bars, weighted crystal contributions, normalization and attention streams explain the active mathematics.
+
+
+## Side annotations and repeated templates · v0.7.1
+
+Composite geometry contains only its dependency skeleton. Its explanation lives in one nearby world-space typographic plate. Parallel branches share a row, sequential stages retain reading order; repetition combines a compact sequence with three translucent receding sections and an exact independent-instance count. Ghost sections represent repeated templates, not sampled numeric tensors or tied weights.
+
+Both side lanes are available for repeated blocks. Annotation scaling targets readable screen size, with collision checks against tensor and composite volumes. Hover shows only the relevant region; all/none controls remain. Provenance and active-region text share normal document flow under the title, with no absolute offsets. Navigation wraps on narrow or inspector-constrained widths.

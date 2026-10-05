@@ -1,3 +1,6 @@
+import { installAPIOperators } from './apiOperators.js';
+import { installSpatialOperators } from './spatialOperators.js';
+import { installConditionalOperators } from './conditionalOperators.js';
 import { coordinates, flatIndex, valueAt, type Tensor, type Operation } from './model.js';
 import { installExtendedOperators } from './extendedOperators.js';
 import { installLLMOperators } from './llmOperators.js';
@@ -137,3 +140,36 @@ registerOperator('layout', { label: '坐标组织', color: '#84bce6', formula: '
         };
         return trace(out.id, index, 0);
     } });
+
+installConditionalOperators(registerOperator);
+
+installAPIOperators(registerOperator);
+installSpatialOperators(registerOperator);
+
+registerOperator('semantic', { label: '功能组合', color: '#b6a0e6', formula: '保留原始计算子图与真实张量边界', detail: 'exact', dependencies: (node, out, index, tensors) => {
+    const children = node.attrs?.children as Operation[] ?? [], producer = new Map(children.flatMap(n => n.outputs.map(id => [id,n] as const)));
+    const memo = new Map<string, Dependency[]>();
+    const trace = (id:string, i:number, depth=0):Dependency[] => {
+        const key=id+':'+i; if(memo.has(key)) return memo.get(key)!;
+        const n=producer.get(id), t=tensors.get(id);
+        if(!n || !t || depth>children.length) return [{tensor:id,index:i}];
+        const unique=new Map<string,Dependency>();
+        for(const d of operatorVisual(n.op).dependencies(n,t,i,tensors)) for(const leaf of trace(d.tensor,d.index,depth+1)) unique.set(leaf.tensor+':'+leaf.index,{tensor:leaf.tensor,index:leaf.index});
+        const result=[...unique.values()];memo.set(key,result);return result;
+    };
+    return trace(out.id,index);
+}});
+
+// Routing primitives emitted by the execution backend carry exact coordinate
+// provenance for this captured path (including data-dependent expert selection).
+for(const [kind,label,formula] of [
+    ['topk','Top-k 选择','v, i = TopK(x)'],['index','按索引取 Token','y_j = x_{i_j}'],
+    ['index_add','专家结果累加','y_i = x_i + Σ_{j: index_j=i} source_j'],
+    ['scatter','索引写入','y[index] = value'],['not','布尔取反','y = ¬x'],
+    ['masked_fill','掩码填充','y = mask ? c : x'],['one_hot','专家分配掩码','y_{i,e} = [index_i=e]'],
+    ['nonzero','选中 Token 坐标','i = nonzero(mask)'],['unbind','分离坐标轴','y_j = x.select(dim,j)'],
+    ['constant','常量初始化','y = constant'],
+])registerOperator('routing_'+kind,{label,color:'#c3a2e0',formula,detail:'exact',dependencies:(node,out,index)=>{
+    const maps=node.attrs?.coordinateDependencies as Dependency[][][]|undefined;
+    return maps?.[node.outputs.indexOf(out.id)]?.[index]??[];
+}});

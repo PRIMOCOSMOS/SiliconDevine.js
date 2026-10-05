@@ -11,3 +11,10 @@ export { numericPalette } from './render/numericPaletteTokens.js';
 export { LiveConnection } from './core/liveClient.js';
 export type { LiveStatus } from './core/liveClient.js';
 export { moduleView } from './core/hierarchy.js';
+export { aggregatePartition } from './core/layout.js';
+export { defineArchitecture } from './core/architecture.js';
+export type { ArchitectureScopes } from './core/architecture.js';
+
+export { inspectSupport } from './core/support.js';
+
+export { atomicComposition, resolveAtomicComposition, compositionCatalog } from './core/atomicComposition.js';

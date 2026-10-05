@@ -1,5 +1,8 @@
 # IDE 与 Web 工作台
 
+[使用说明](USER_GUIDE.md) · [文档目录](INDEX.md)
+
+
 ## 应用入口
 
 双击 start-app.cmd，选择模型文件、工厂函数（默认 build_model）、捕获接口及已安装 PyTorch 的 Python 环境，点击启动。自动选择空闲本机端口并打开网页。停止或关闭只影响此启动器拥有的服务。设置保存在 %LOCALAPPDATA%/SiliconDevine/launcher.json。

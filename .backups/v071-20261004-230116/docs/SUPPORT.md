@@ -1,0 +1,93 @@
+# 支持范围与 PyTorch 接口核查 · 0.7.1
+
+| 能力 | 实际范围 |
+| --- | --- |
+| 接入 | FX / torch.export、位置/关键字与嵌套输入、合法 DAG、共享参数、多输入输出 |
+| 本地应用 | 桌面启动器、环境选择、模型监视、失败恢复、自动更新、按需张量窗口 |
+| 数学依赖 | Linear、分组/膨胀 Conv1/2/3D、转置卷积1/2/3D、矩阵/向量/批量乘法、广播加法/乘法 |
+| 更多依赖 | 最大/平均/自适应池化1/2/3D、BatchNorm、GroupNorm、InstanceNorm、Embedding、Concat、Softmax、LayerNorm、索引/切片、置换/转置/reshape、RMSNorm、chunk/split、stack、GQA 重复、掩码、差值 |
+| 激活 | ReLU、GELU、Sigmoid、Tanh、SiLU、LeakyReLU、ELU、Softplus；真实输入输出同步着色 |
+| 注意力 | export 的标准注意力、因果掩码、布尔/加性掩码与 GQA 展开为真实 repeat、transpose、matmul、scale、mask、softmax、matmul |
+| 动态形状 | 接收 dynamic_shapes，记录 range_constraints；晶体表示本次输入的具体形状 |
+| 导航 | 模块路径索引、图段分页、坐标窗口、保留边界输入输出 |
+
+Conv 支持 same/valid、整数/元组 padding、reflect/replicate/circular。权重线与 W 晶体通过相同 Tensor ID / flatten index 联动。
+
+## 明确边界
+
+- 这是给定输入的 eval 前向图，不是反向梯度、优化器或全部 Python 分支。FX 和 export 各有可跟踪性限制。
+- 完整依赖规则不意味着整个模型同时渲染。图段、晶体与连线有预算；复杂图按区域懒惰显示，未知值不当作零。
+- 注意力分数矩阵超过 262144 项时保留融合边界。非零 attention dropout 保留融合边界。已验证 TinyGPT、LLaMA-style 与原生 Transformer 小型实例，不代表所有模型变体。
+- 未注册算子（如一般 Tensor.unfold、抗锯齿插值、三维 Grid Sample 和部分线性代数运算）保留真实输入输出，提示内部数学动效未实现。插件不是所有 ATen 算子的集合，可通过 registerOperator 扩展。
+- 稀疏、量化、复数 Tensor 明确拒绝；超出 JavaScript 安全整数范围的整数不能保证精确传输。主要目标是密集浮点网络。
+- 静态 JSON 只包含已有数值；坐标偏移不产生缺失值。连接服务后才可读取预算内快照的其他坐标。
+- 动态约束是元数据，不在浏览器实现符号求解或自动覆盖所有输入。修改输入需要重新执行 PyTorch。
+- 激活曲线展示数学函数，输出数值由 PyTorch 执行捕获；声明式 GELU 使用 erf 近似，不宣称位级复现。
+- 本次验证 PyTorch 2.9 CPU / Windows Edge；CUDA、Safari、超大图、WebXR 和所有 PyTorch 版本尚未验证。
+
+模型文件由所选本机 Python 执行。浏览器不接受 Python 上传执行，不提供远程任意代码沙箱。
+
+0.3 的 LLM 示例为随机初始化、小尺寸 prefill 前向模型；不含 tokenizer、预训练权重、KV-cache 增量解码或生成服务。RoPE 使用与相邻复数对等价的实数运算，框架仍不接受一般复数 Tensor。
+
+SAB / ISAB 使用带归一化的 MAB 独立示例；纯坐标变换可在功能架构中合并，数学映射保持。Norm、最后一轴 Softmax、二元逐元素合并提供专用局部机制动效；原始图始终可访问。
+
+0.4 新增上游源码直接接入和保守功能识别，详见 UPSTREAM.md。类型转换保留实际输出dtype和捕获数值，前端不模拟任意dtype位级转换。
+
+
+## 0.7.1 接口补全
+
+这一轮按 PyTorch 的模块、函数、图捕获、张量类型和执行环境逐类检查。下表区分当前能力和仍需扩展的部分。无法识别的算子保持原图和真实输出，界面会列出名称。
+
+| 接口类别 | 当前能力 | 边界与用法 |
+| --- | --- | --- |
+| `torch.nn` / `nn.functional` | 原有卷积、池化、归一化、注意力；新增独立填充、图像分块和重组、像素重排、更多激活 | 同一功能分别验证 FX 模块和 export 的 ATen 调用 |
+| Padding | Zero / Constant / Reflection / Replication / Circular 的 1D、2D、3D；常量填充支持负 padding 裁剪 | 水晶表示捕获值，连线映射实际来源；常量填充区域没有虚构输入连线 |
+| `nn.Unfold` / `nn.Fold`、对应 functional | 核大小、stride、padding、dilation；Fold 包含重叠位置求和与无 Batch 输入 | Unfold 针对四维图像；一般 `Tensor.unfold` 仍保留边界 |
+| 插值与上采样 | nearest、nearest-exact、linear / bilinear / trilinear；size、scale_factor、align_corners、recompute_scale_factor | 保留每个来源坐标及插值权重；bicubic、抗锯齿和未覆盖模式保持边界 |
+| Grid Sample | 二维 nearest / bilinear；zeros、border、reflection 边界；align_corners | 采样网格控制源位置；未知网格值不会生成虚构连线；三维和 bicubic 待扩展 |
+| 归约与索引 | sum、amax、amin 的多轴 / keepdim；Gather、Index Select | 索引和网格连线表示控制依赖，不作为输出的数值加数 |
+| PixelShuffle / PixelUnshuffle | 通道与空间间的逐元素可逆坐标映射 | 不做数值插值 |
+| 激活 | 新增 ReLU6、Hardswish、Hardsigmoid、Hardtanh、Softsign、SELU、CELU、Mish、LogSigmoid、LogSoftmax、PReLU；补齐 abs | PReLU 使用真实逐通道参数；固定激活用数值曲线；LogSoftmax 显示整条归一化轴的依赖 |
+| 形状与 Dropout | 新增 nn.Unflatten、Dropout1/2/3D、AlphaDropout、FeatureAlphaDropout | 当前统一捕获 eval 前向；Dropout 在 eval 中是恒等映射，不演示训练随机掩码 |
+| `torch.fx` / `torch.export` | 模块边界或 ATen 图，动态形状约束元数据、真实执行快照 | FX 不支持一般数据依赖控制流；export 也有可追踪性限制 |
+| `torch.nn.attention` | 标准 SDPA、GQA、因果与布尔/加性掩码，预算内展开 | FlexAttention、所有自定义 GPU kernel 尚无专用数学插件 |
+| `torch.distributions` | 现有标准正态样本、VAE 高斯重参数化识别 | 不覆盖所有分布、变换及概率推断 API |
+| `torch.linalg` / `torch.fft` / `torch.special` | 可追踪且输出为实数密集张量时保留执行拓扑 | SVD、FFT 等无专用原理视图；一般复数输出会明确拒绝 |
+| sparse / quantization / nested | 保留明确的数据类型检查 | 当前晶体坐标协议面向密集实数 Tensor；尚不提供完整特殊存储布局适配 |
+| autograd / optim / distributed / compile | 可视化对象仍是原始模型的 eval 前向计算 | 不显示反向图、优化器状态、通信集合操作或编译器调度；请导出原始 nn.Module |
+| CUDA / AMP | 在所选本机 Python 中执行后读取有界窗口 | 本轮验证环境为 PyTorch 2.9.0+cpu；未对 CUDA、AMP、其他版本作通用通过声明 |
+
+## 检查自己的模型
+
+在 IDE 先运行：
+
+```python
+from silicondevine import audit_model
+report = audit_model(model, (example_input,), backend="export")
+print(report["operators"])
+print(report["unresolved"])
+```
+
+它检查实际执行图，不把 API 名称相似视为支持成功。Web 端打开「解读与参数 → 算子支持检查」，可以看到本图有数学依赖插件的数量、尚未展开的算子和原因。这个结果来自实际渲染注册表，也包含你自己注册的插件。
+
+JavaScript 可调用 `inspectSupport(model)` 获取同一份报告。识别和渲染分别检查：有些已识别的融合算子会因开销或随机行为保持边界。
+
+## 核对依据
+
+- [PyTorch nn 模块目录](https://docs.pytorch.org/docs/stable/nn.html)
+- [FX 捕获及控制流限制](https://docs.pytorch.org/docs/stable/fx.html)
+- [torch.export 与动态形状](https://docs.pytorch.org/docs/stable/export.html)
+- [Unfold 图像分块](https://docs.pytorch.org/docs/stable/generated/torch.nn.Unfold.html) 与 [Fold 重叠求和](https://docs.pytorch.org/docs/stable/generated/torch.nn.Fold.html)
+- [functional.pad](https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.pad.html)
+- [PReLU 的通道参数](https://docs.pytorch.org/docs/stable/generated/torch.nn.PReLU.html)
+
+官方 stable 页面可能随 PyTorch 版本更新；实际兼容性以当前安装环境中的捕获测试为准。
+
+
+## 空间采样示例
+
+模型库「基础网络 → 空间采样与重组」依次展示双线性上采样、二维网格采样、Unfold 分块、Fold 重叠求和。来源文件为 `examples/spatial_operators.py`；在启动器的自定义代码入口选择此文件、工厂函数填 `build`，即可从 IDE 修改参数并重新捕获。
+
+参与采样的源邻域会高亮；移动的晶体按实际插值权重着色，并汇入对应输出。计算区域沿主干排列，动效只更新活动区域。动画中的贡献晶体有固定数量上限，数学依赖和原始张量坐标保持完整记录。
+
+核对接口：[interpolate](https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html)、[grid_sample](https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html)、[gather](https://docs.pytorch.org/docs/stable/generated/torch.gather.html)、[index_select](https://docs.pytorch.org/docs/stable/generated/torch.index_select.html)。

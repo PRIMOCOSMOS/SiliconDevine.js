@@ -1,0 +1,45 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VAE 架构与可视化</title><style>body{margin:0;background:#080c12;color:#eef3f8;font:16px/1.8 "Segoe UI","Microsoft YaHei UI",sans-serif}main{max-width:920px;margin:48px auto;padding:0 24px 80px}h1{font-size:36px;line-height:1.3}h2{font-size:23px;margin:48px 0 16px;scroll-margin-top:20px}h3{font-size:19px;margin-top:30px}p,li{color:#d0dce6}a{color:#a9d9f7}pre{padding:20px;background:#151f2b;border-radius:12px;overflow:auto;font:14px/1.7 Consolas,monospace}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}table{border-collapse:collapse;width:100%;min-width:460px;font-size:14px}td,th{padding:12px;text-align:left;border-bottom:1px solid #344452;vertical-align:top}.table-scroll{overflow:auto}nav{padding:18px 0;border-bottom:1px solid #344452}nav a{margin-right:18px;display:inline-block}a:focus-visible{outline:2px solid #b5e2ff;outline-offset:4px}@media(max-width:600px){main{padding:0 16px 48px;margin-top:24px}h1{font-size:28px}h2{font-size:21px}pre{padding:14px}}</style></head><body><main><nav><a href="QUICKSTART.html">使用说明</a><a href="INDEX.html">文档目录</a></nav><h1 id="vae">VAE 架构与可视化</h1>
+<p><a href="QUICKSTART.html">使用说明</a> · <a href="INDEX.html">文档目录</a></p>
+<p>启动器与网页的 VAE 栏目提供三个入口：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>示例</th>
+<th>来源</th>
+<th>前向结构</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VAE · PyTorch 官方原型</td>
+<td><code>pytorch/examples</code> 的原始 VAE 类</td>
+<td>784 → 400 → 两个 20 维高斯参数头 → z → 400 → 784</td>
+</tr>
+<tr>
+<td>卷积 VAE</td>
+<td>本项目的小尺寸示例，非官方模型</td>
+<td>Conv2d → 特征展平 → μ/logvar → z → 全连接投影 → ConvTranspose2d</td>
+</tr>
+<tr>
+<td>条件 VAE</td>
+<td>本项目的小尺寸示例，非官方模型</td>
+<td>输入与条件拼接 → 编码器 → μ/logvar → z 与同一条件拼接 → 解码器</td>
+</tr>
+</tbody>
+</table></div>
+<p>官方源码固定在提交 <code>acc295dc7b90714f1bf47f06004fc19a7fe235c4</code>，保存在 <code>examples/upstream/pytorch_vae/main.py</code>，同时保留许可证和 SHA256。适配器只通过 AST 提取并执行原始 VAE 类，不修改它的 <code>__init__</code> 或 <code>forward</code>，不执行下载数据或训练脚本。输入是明确的合成张量，权重随机初始化，不代表训练效果。</p>
+<h2 id="pytorch">读取真实 PyTorch 模型</h2>
+<pre><code class="language-python">from silicondevine import show
+from vae_models import build_official_vae
+
+spec = build_official_vae()
+show(spec['model'], spec['args'], backend='export')
+</code></pre>
+<p>也可以在启动器中选择自己的模型文件；框架不依赖模型的类名含有 VAE。检测到实际计算图中的 <code>mu + exp(0.5 * logvar) * randn_like(...)</code>、匹配的形状与标准正态来源后，才赋予「高斯重参数采样」功能语义。识别兼容乘法操作数交换、FX 与 export 捕获，也兼容不导出数值的结构图。不会把 <code>exp(logvar)</code> 误认成同样的对数方差参数化。</p>
+<h2 id="_1">解释与层级</h2>
+<p>两个参数头保持同一层级；水晶元素具有真实张量索引、形状和已捕获数值。总览将高斯采样聚合成一个完整功能单元，点击可进入原始五个算子：半对数方差、指数、标准噪声、缩放、平移。切换「算子细节」也可检查全部原始计算，支持返回。</p>
+<p>标准正态算子输入只提供形状，不被错误地描绘成由输入数值确定的变换。噪声 ε 是本次 PyTorch 执行得到的样本；浏览器不会重新生成随机数。每个坐标的结果满足 <code>z = mu + sigma * epsilon</code>。</p>
+<p>高斯曲线在 N(0,1) 和当前坐标的 N(μ,σ²) 之间平滑变换，晶体标记跟随同一个捕获的 ε。曲线是解析参考曲线，按峰值归一化显示以突出宽度变化，不是直方图，也不代表重新抽样。状态栏展示当前坐标、μ、σ、ε 和 z。动效仅在活动模块区域更新，图形对象复用；原有张量窗口与复杂图分区预算保留。</p>
+<p>数学讲解使用 KaTeX。重建损失与 KL 正则是理论说明；当前框架捕获 eval 模式的实际前向路径，没有凭空添加反向图、训练损失节点或未执行分支。对于不同参数化、离散 VAE、向量量化 VAE 和任意分布组合，不宣称已自动识别；未匹配部分保持原始算子与真实边界。</p>
+<h2 id="_2">验证</h2>
+<p><code>tests/test_vae.py</code> 验证官方源文件校验和、三个模型的真实前向输出、随机状态不被导出污染、无数值导出的识别和反例拒绝。<code>tests/vae.mjs</code> 检查有限窗口内可计算的标量值、依赖坐标与总览/细节结构；<code>tests/browser-v05.mjs</code> 检查真实样本动效、返回、演示模式、移动端和减少动态效果。</p></main></body></html>

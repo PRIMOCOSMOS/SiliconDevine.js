@@ -1,6 +1,8 @@
 /** Versioned interchange contract. Shapes are logical row-major coordinates. */
 export type Dimension = number | string;
 export interface Tensor {
+    /** Aggregate partitions cover a logical tensor; they are not scalar samples. */
+    representation?: 'aggregate';
     id: string;
     shape: Dimension[];
     dtype: string;
@@ -35,6 +37,17 @@ export interface Operation {
     source?: string;
 }
 export interface Model {
+    executionRef?: string;
+    executionScope?: string;
+    mechanismRef?: string | null;
+    stages?: {name:string;nodes:string[]}[];
+    architecture?: {
+        mode: 'structure'; entry: string;
+        mechanisms?: Record<string, Model>;
+        scopes: Record<string, Omit<Model, 'architecture' | 'format' | 'version'>>;
+        parameterCount: string; layers?: number; experts?: number; topK?: number;
+        family?: string; layerSchedule?: number[]; config?: Record<string, unknown>;
+    };
     format: 'silicondevine';
     version: 1;
     name: string;
@@ -122,11 +135,26 @@ export function validateModel(input: unknown): Model {
         if (!tensors.has(id))
             throw Error(`缺失张量：${id}`);
     };
+    let dependencyBudget=0;
     for (const n of m.nodes) {
         if (!n || typeof n.id !== 'string' || !n.id || ids.has(n.id) || typeof n.op !== 'string' || typeof n.name !== 'string' || !Array.isArray(n.inputs) || !Array.isArray(n.outputs) || !n.outputs.length)
             throw Error('算子无效或 ID 重复。');
         ids.add(n.id);
         [...n.inputs, ...n.outputs, ...Object.values(n.parameters ?? {})].forEach(exists);
+        if(n.attrs?.coordinateDependencies){
+            const maps=n.attrs.coordinateDependencies as {tensor:string;index:number;weight?:number}[][][];
+            if(!Array.isArray(maps)||maps.length!==n.outputs.length)throw Error('执行坐标映射输出不匹配。');
+            maps.forEach((rows,slot)=>{
+                if(!Array.isArray(rows)||rows.length!==numel(tensors.get(n.outputs[slot])!.shape))throw Error('执行坐标映射形状不匹配。');
+                for(const row of rows){
+                    if(!Array.isArray(row))throw Error('无效执行坐标映射。');
+                    dependencyBudget+=row.length;if(dependencyBudget>1000000)throw Error('执行依赖超过安全预算。');
+                    for(const d of row){exists(d.tensor);const size=numel(tensors.get(d.tensor)!.shape);
+                        if(!Number.isSafeInteger(d.index)||d.index<0||size===undefined||d.index>=size||d.weight!==undefined&&!Number.isFinite(d.weight))throw Error('执行依赖坐标越界。');
+                    }
+                }
+            });
+        }
         for (const o of n.outputs) {
             if (producers.has(o))
                 throw Error(`张量有多个生产者：${o}`);
@@ -134,7 +162,41 @@ export function validateModel(input: unknown): Model {
         }
     }
     [...m.inputs, ...m.outputs].forEach(exists);
+    if(m.stages&&(m.stages.length>24||m.stages.some(s=>typeof s.name!=='string'||!Array.isArray(s.nodes)||s.nodes.some(id=>!ids.has(id)))))throw Error('计算阶段无效。');
     topologicalNodes(m);
+    if (m.architecture) {
+        const a=m.architecture, keys=Object.keys(a.scopes ?? {});
+        if(a.mode!=='structure' || !keys.includes(a.entry) || keys.length>128 || !/^\d{1,30}$/.test(a.parameterCount)) throw Error('结构模板元数据无效。');
+        const mechanisms=a.mechanisms??{};
+        if(Object.keys(mechanisms).length>32)throw Error('计算演示超过 32 个。');
+        let mechanismValues=0;
+        for(const demo of Object.values(mechanisms)) {
+            if(demo.architecture)throw Error('计算演示不能再嵌套架构。');
+            validateModel(demo);
+            mechanismValues+=demo.tensors.reduce((s,t)=>s+(t.data?.values.length??0),0);
+        }
+        if(mechanismValues>250000)throw Error('计算演示数值预算超过 250,000。');
+        let total=0;
+        for(const key of keys) {
+            const scope=a.scopes[key];
+            if ('architecture' in scope) throw Error('模板不允许嵌套文档。');
+            validateModel({...scope,format:'silicondevine',version:1});
+            total+=scope.nodes.length+scope.tensors.length;
+            if(total>16000) throw Error('结构模板超过安全预算。');
+            for(const t of scope.tensors) if(t.representation!=='aggregate'||t.data||t.samples) throw Error('结构模式只接受无数值的逻辑分区。');
+            if(scope.executionRef&&!mechanisms[scope.executionRef])throw Error('缺失源码执行图。');
+            if(scope.mechanismRef&&!mechanisms[scope.mechanismRef])throw Error('缺失计算演示。');
+            for(const n of scope.nodes) {
+                if(n.attrs?.mechanismRef&&!mechanisms[String(n.attrs.mechanismRef)])throw Error('缺失算子演示。');
+                const ref=n.attrs?.scopeRef, repeat=n.attrs?.repeat;
+                if(ref!==undefined&&(typeof ref!=='string'||!keys.includes(ref))) throw Error('结构模板引用不存在。');
+                if(repeat!==undefined&&(!Number.isSafeInteger(repeat)||Number(repeat)<1)) throw Error('重复数量无效。');
+            }
+        }
+        const done=new Set<string>(), active=new Set<string>();
+        const visit=(key:string,depth=0)=>{if(active.has(key)||depth>32)throw Error('模板引用循环或过深。');if(done.has(key))return;active.add(key);for(const n of a.scopes[key].nodes)if(n.attrs?.scopeRef)visit(String(n.attrs.scopeRef),depth+1);active.delete(key);done.add(key);};
+        keys.forEach(k=>visit(k));
+    }
     return m;
 }
 export function topologicalNodes(m: Model): Operation[] {

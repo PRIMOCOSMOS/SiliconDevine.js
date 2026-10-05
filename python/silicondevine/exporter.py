@@ -26,6 +26,9 @@ def _json(value):
 
 def _op(target, module=None):
     if module is not None:
+        from .api_extensions import module_op
+        extra=module_op(module)
+        if extra:return extra
         table = {nn.Linear: 'linear', nn.Conv1d: 'conv1d', nn.Conv2d: 'conv2d', nn.Conv3d: 'conv3d',
                  nn.ReLU: 'relu', nn.GELU: 'gelu', nn.Sigmoid: 'sigmoid', nn.Tanh: 'tanh',
                  nn.Softmax: 'softmax', nn.LayerNorm: 'layernorm', nn.BatchNorm2d: 'batchnorm',
@@ -68,7 +71,10 @@ def _op(target, module=None):
     aliases.update({'batch_norm':'batchnorm','group_norm':'groupnorm','instance_norm':'instancenorm',
                     'max_pool1d':'maxpool1d','max_pool2d':'maxpool2d','max_pool3d':'maxpool3d',
                     'avg_pool1d':'avgpool1d','avg_pool2d':'avgpool2d','avg_pool3d':'avgpool3d'})
+    aliases.update({'mix_kernels':'kernel_mix','batch_conv2d':'dynamic_conv2d'})
     aliases.update({'exp':'exp','randn_like':'standard_normal','randn':'standard_normal'})
+    from .api_extensions import function_aliases
+    aliases.update(function_aliases())
     return aliases.get(base, 'opaque')
 
 
@@ -168,6 +174,11 @@ class Capture(fx.Interpreter):
                             attrs.pop('dilation',None)
                             for key, index in [('output_padding',5),('groups',6),('dilation',7)]:
                                 if len(node.args)>index: attrs[key]=_json(node.args[index])
+                if op=='dynamic_conv2d':
+                    parameters['weight']=inputs[1]
+                    for key,index in [('stride',2),('padding',3),('dilation',4),('groups',5)]:
+                        if len(node.args)>index:attrs[key]=_json(node.args[index])
+                    attrs['generatedWeight']=True
                 if op in ('batchnorm','instancenorm','groupnorm'):
                     if op=='groupnorm':
                         positions=[('weight',2),('bias',3)]
@@ -235,12 +246,16 @@ class Capture(fx.Interpreter):
                             attrs.setdefault('scalarOperands',{})[str(i)]=value
                             inputs.extend(self.tensor(torch.tensor(value), f'{node.name}:scalar:{i}', 'constant'))
                         else:inputs.extend(self.deps(value))
+            from .api_extensions import normalize
+            op=normalize(self,node,module,op,attrs,parameters,inputs)
+            from .execution import normalize_execution
+            op=normalize_execution(self,node,result,op,attrs)
             stack = node.meta.get('nn_module_stack', {})
             if op=='standard_normal':
                 attrs.update({'distribution':'Normal(0,1)','stochastic':True,'shapeInputs':list(inputs),'valueSource':'captured PyTorch execution; browser never resamples'})
             trace=str(node.meta.get('stack_trace',''))
             if trace:attrs['codeTrace']=trace[-2500:]
-            if 'modeling_llama.py' in trace and 'apply_rotary_pos_emb(' in trace:attrs['sourceFunction']='apply_rotary_pos_emb'
+            if 'modeling_' in trace and 'apply_rotary_pos_emb(' in trace:attrs['sourceFunction']='apply_rotary_pos_emb'
             if 'silicondevine_lowered_from' in node.meta:
                 attrs['lowered_from']=node.meta['silicondevine_lowered_from']
             if 'silicondevine_attention_budget' in node.meta:
@@ -273,8 +288,8 @@ def export_model(model, args, path=None, *, backend='fx', include_values=False, 
     Unknown operations remain opaque; values are optional bounded windows. Input
     shapes are concrete for this run, including when the source model is dynamic.
     """
-    if backend not in ('fx', 'export'):
-        raise ValueError("backend must be 'fx' or 'export'")
+    if backend not in ('fx', 'export', 'execution'):
+        raise ValueError("backend must be 'fx', 'export', or 'execution'")
     if not 0 <= value_limit <= 100000 or not 0 <= total_value_limit <= 2000000:
         raise ValueError('Invalid value window budget')
     args = args if isinstance(args, tuple) else (args,)
@@ -290,6 +305,16 @@ def export_model(model, args, path=None, *, backend='fx', include_values=False, 
                 bound=inspect.signature(graph.forward).bind(*inputs,**keyword_inputs)
                 bound.apply_defaults()
                 flat=[bound.arguments[str(n.target)] for n in graph.graph.nodes if n.op=='placeholder']
+            elif backend=='execution':
+                if dynamic_shapes is not None:raise ValueError('execution records one concrete input path')
+                from torch.fx.experimental.proxy_tensor import make_fx
+                def run(*values):return copied(*values,**keyword_inputs)
+                run._orig_mod=copied
+                graph=make_fx(run,pre_dispatch=True,record_module_stack=True,record_stack_traces=True,
+                              tracing_mode='real',_error_on_data_dependent_ops=False)(*inputs)
+                from .execution import lower_execution
+                graph=lower_execution(graph)
+                flat=list(inputs)
             else:
                 program=torch.export.export(copied,inputs,keyword_inputs,dynamic_shapes=dynamic_shapes)
                 graph=program.module()
@@ -313,6 +338,10 @@ def export_model(model, args, path=None, *, backend='fx', include_values=False, 
               'notes': ['Eval-mode forward graph for the supplied inputs; no backward graph or unexecuted control-flow branches.',
                         'Stored values are contiguous windows. Statistics describe stored values, not the entire tensor.',
                         'Unknown operators preserve topology and captured tensors; internal math is not invented.']}
+    if backend=='execution':
+        from .execution import fold_norms
+        fold_norms(result,copied)
+        result['notes'].insert(0,'Concrete executed path: data-dependent routing is specialized to these inputs. Re-capture after changing inputs.')
     from .recognition import annotate_model
     annotate_model(result,copied)
     if path:

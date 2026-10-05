@@ -1,0 +1,29 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>看清模型怎样计算</title><style>body{margin:0;background:#080c12;color:#eef3f8;font:16px/1.8 "Segoe UI","Microsoft YaHei UI",sans-serif}main{max-width:920px;margin:48px auto;padding:0 24px 80px}h1{font-size:36px;line-height:1.3}h2{font-size:23px;margin:48px 0 16px;scroll-margin-top:20px}h3{font-size:19px;margin-top:30px}p,li{color:#d0dce6}a{color:#a9d9f7}pre{padding:20px;background:#151f2b;border-radius:12px;overflow:auto;font:14px/1.7 Consolas,monospace}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}table{border-collapse:collapse;width:100%;min-width:460px;font-size:14px}td,th{padding:12px;text-align:left;border-bottom:1px solid #344452;vertical-align:top}.table-scroll{overflow:auto}nav{padding:18px 0;border-bottom:1px solid #344452}nav a{margin-right:18px;display:inline-block}a:focus-visible{outline:2px solid #b5e2ff;outline-offset:4px}@media(max-width:600px){main{padding:0 16px 48px;margin-top:24px}h1{font-size:28px}h2{font-size:21px}pre{padding:14px}}</style></head><body><main><nav><a href="QUICKSTART.html">使用说明</a><a href="INDEX.html">文档目录</a></nav><h1 id="_1">看清模型怎样计算</h1>
+<p><a href="QUICKSTART.html">使用说明</a> · <a href="INDEX.html">文档目录</a></p>
+<h2 id="_2">在应用里打开</h2>
+<p>重新运行 <code>SiliconDevine.exe</code>。启动器和网页模型库都加入了「动态卷积核」「条件注意力」。这两个示例会实际运行 PyTorch，显示捕获到的输入、参数、中间张量和输出。</p>
+<p>内置 DeepSeek-V3、GLM-4.5、MiniMax-M1 默认进入源码执行组合，使用原始 forward 的缩小配置捕获图。操作与适配边界见 <a href="ATOMIC-COMPOSITION.html">源码组合</a>。</p>
+<p>本文件下面的 <code>attach_mechanisms</code> 是另一项显式接口：给配置结构附加固定维度的独立教学机制。它保留旧版按阶段查看与巡航功能。独立机制用于演示算法，不自动证明给定模型的自定义 forward 与之相同；实际代码验证使用 execution 捕获。</p>
+<h2 id="_3">动效与结构视图</h2>
+<p>功能架构聚合坐标组织、RoPE、注意力分配和门控，并保留原始 children 与边界张量 ID。点击功能段查看组成；原始算子视图可逐项检查。重排以晶体坐标移动表示，广播展示共享源坐标向目标位置展开。它们与乘加权重线使用不同的动效。</p>
+<p>复杂图只生成活动区域的数学连接。侧旁三维标注使用固定世界坐标，旋转和缩放不会触发位移、换侧或补偿缩放。默认主干标注不随计算轮播跳换；悬停标注或结构时按所属模块联动高亮。遮挡检查只控制可见性。</p>
+<h2 id="ide">在 IDE 使用</h2>
+<pre><code class="language-python">import torch
+from silicondevine import DynamicConv2d, ConditionalAttention, show
+
+model = DynamicConv2d(4, 8, kernel_size=3, experts=4).eval()
+show(model, (torch.randn(2, 4, 12, 12),))
+</code></pre>
+<p>动态卷积以输入的全局平均池化特征生成 Softmax 系数，混合可学习核库，再对每个 Batch 项执行自己的卷积。支持 stride、padding、dilation、groups；当前接口为二维、每个样本一套核、不含偏置。用默认 FX 导出可保留「核混合」「逐样本卷积」专用动效。任意自定义动态卷积变体需要由其实际计算图或插件说明。</p>
+<pre><code class="language-python">model = ConditionalAttention(dim=8, condition_dim=12, heads=2).eval()
+x = torch.randn(1, 4, 8)
+condition = torch.randn(1, 6, 12)
+mask = torch.zeros(4, 6)  # 加性 mask；不可见位置填 -inf
+show(model, (x, condition, mask), backend=&quot;export&quot;)
+</code></pre>
+<p>Query 来自 x，Key/Value 来自 condition。输入数量和序列长度可以不同。此接口提供条件交叉注意力；其他门控、调制或条件位置编码变体按模型自己的 PyTorch 图导出。</p>
+<p>给已有大模型配置图附加计算演示：</p>
+<pre><code class="language-python">from silicondevine import architecture_from_config, attach_mechanisms
+graph = attach_mechanisms(architecture_from_config(config, &quot;deepseek_v3&quot;))
+</code></pre>
+<p>JavaScript 框架接口：<code>viewer.showMechanism()</code>、<code>viewer.showStructure()</code>、<code>viewer.setComputationStage(index)</code>、<code>viewer.setTour(true)</code>。自定义架构可通过 <code>architecture.mechanisms</code> 提供经过验证的数值模型，并用 <code>mechanismRef</code> 关联；<code>defineArchitecture</code> 的第四个参数接收这些演示。</p></main></body></html>

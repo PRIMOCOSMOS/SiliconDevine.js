@@ -1,11 +1,12 @@
 import { topologicalNodes, type Model, type Operation } from './model.js';
 import { groupCoordinateChanges } from './layoutGroups.js';
+import { semanticStages } from './semanticGroups.js';
 /** Collapse native module boundaries; visible tensors keep their original IDs and data. */
 export function moduleView(model: Model, scope = '', detail = false): Operation[] {
     const within = (path: string, parent: string) => !parent || path === parent || path.startsWith(parent + '.');
     const nodes = topologicalNodes(model).filter(n => within(n.group ?? n.id, scope));
-    if (detail || !model.modules)
-        return nodes;
+    if (detail) return nodes;
+    if (!model.modules) return groupCoordinateChanges(model, semanticStages(model, nodes));
     const roots: string[] = [];
     for (const m of [...model.modules].sort((a, b) => a.path.split('.').length - b.path.split('.').length)) {
         if (m.path === scope || !within(m.path, scope) || roots.some(p => within(m.path, p)))
@@ -44,7 +45,7 @@ export function moduleView(model: Model, scope = '', detail = false): Operation[
         }
     }
     try {
-        return groupCoordinateChanges(model, groupGaussianSampling(model, groupCapturedFunctions(model, topologicalNodes({ ...model, nodes: result }))));
+        return groupCoordinateChanges(model, groupGaussianSampling(model, semanticStages(model, topologicalNodes({ ...model, nodes: result }))));
     }
     catch {
         return nodes;
@@ -66,39 +67,4 @@ function groupGaussianSampling(model: Model,nodes: Operation[]): Operation[] {
         children.forEach(n=>replacement.set(n.id,node));
     }
     const seen=new Set<string>();return nodes.flatMap(n=>{const node=replacement.get(n.id)??n;if(seen.has(node.id))return [];seen.add(node.id);return [node];});
-}
-/** Group only a function explicitly present in the captured Python call site. */
-function groupCapturedFunctions(model: Model, nodes: Operation[]): Operation[] {
-    const groups = new Map<string, Operation[]>();
-    for (const n of nodes) {
-        if (n.attrs?.sourceFunction) {
-            const key = n.group + ':' + n.attrs.sourceFunction;
-            groups.set(key, [...groups.get(key) ?? [], n]);
-        }
-    }
-    const replacements = new Map<string, Operation>();
-    for (const [key, children] of groups) {
-        if (children.length < 2)
-            continue;
-        const ids = new Set(children.map(n => n.id)), produced = new Set(children.flatMap(n => n.outputs)), external = new Set([...model.outputs, ...model.nodes.filter(n => !ids.has(n.id)).flatMap(n => [...n.inputs, ...Object.values(n.parameters ?? {})])]);
-        const outputs = [...produced].filter(id => external.has(id));
-        if (!outputs.length)
-            continue;
-        const node: Operation = { id: 'function:' + key, name: 'RoPE · Q/K 旋转', op: 'function', group: children[0].group, inputs: [...new Set(children.flatMap(n => n.inputs).filter(id => !produced.has(id)))], outputs, attrs: { children, sourceFunction: children[0].attrs?.sourceFunction }, source: 'captured Python call: ' + key };
-        children.forEach(n => replacements.set(n.id, node));
-    }
-    const emitted = new Set<string>(), result: Operation[] = [];
-    for (const n of nodes) {
-        const r = replacements.get(n.id) ?? n;
-        if (!emitted.has(r.id)) {
-            emitted.add(r.id);
-            result.push(r);
-        }
-    }
-    try {
-        return topologicalNodes({ ...model, nodes: result });
-    }
-    catch {
-        return nodes;
-    }
 }

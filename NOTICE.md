@@ -10,3 +10,5 @@ Set Transformer 原文件位于 examples/upstream/set_transformer，保留原作
 
 VAE 官方原型来自 pytorch/examples，固定提交与许可证保存在 examples/upstream/pytorch_vae。KaTeX 用于 VAE 数学讲解，许可证见 THIRD_PARTY_LICENSES/KaTeX.txt。
 Chinese display lettering uses ZCOOL QingKe HuangYou, distributed under the SIL Open Font License. Source: https://github.com/google/fonts/tree/main/ofl/zcoolqingkehuangyou ; license: THIRD_PARTY_LICENSES/ZCOOL-OFL.txt. Numerical data colors and orbital brand geometry are independent systems.
+
+大模型适配来源：DeepSeek-V3 的官方 inference/model.py（MIT）、MiniMax-M1 官方实现（Apache-2.0）、Transformers 4.57.1 的 GLM4-MoE 实现（Apache-2.0）与官方 checkpoint 配置。文件、原许可、提交号与 SHA-256 位于 examples/upstream/large_models；没有分发模型权重。GLM 实现文件保持原样，适配图代码位于 python/silicondevine/architecture.py。

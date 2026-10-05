@@ -1,5 +1,8 @@
 # TinyGPT 与 LLaMA-style 可视化
 
+[使用说明](USER_GUIDE.md) · [文档目录](INDEX.md)
+
+
 ## 直接使用
 
 双击 start-app.cmd，在「选择示例」中选择 TinyGPT 或 LLaMA-style，再启动。它会自动填写模型文件、工厂函数和 export 接口。也可直接在网页「模型来源」选择已导出的模型。

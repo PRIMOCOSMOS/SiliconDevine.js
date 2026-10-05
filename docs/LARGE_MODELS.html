@@ -1,0 +1,72 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>大模型怎么查看</title><style>body{margin:0;background:#080c12;color:#eef3f8;font:16px/1.8 "Segoe UI","Microsoft YaHei UI",sans-serif}main{max-width:920px;margin:48px auto;padding:0 24px 80px}h1{font-size:36px;line-height:1.3}h2{font-size:23px;margin:48px 0 16px;scroll-margin-top:20px}h3{font-size:19px;margin-top:30px}p,li{color:#d0dce6}a{color:#a9d9f7}pre{padding:20px;background:#151f2b;border-radius:12px;overflow:auto;font:14px/1.7 Consolas,monospace}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}table{border-collapse:collapse;width:100%;min-width:460px;font-size:14px}td,th{padding:12px;text-align:left;border-bottom:1px solid #344452;vertical-align:top}.table-scroll{overflow:auto}nav{padding:18px 0;border-bottom:1px solid #344452}nav a{margin-right:18px;display:inline-block}a:focus-visible{outline:2px solid #b5e2ff;outline-offset:4px}@media(max-width:600px){main{padding:0 16px 48px;margin-top:24px}h1{font-size:28px}h2{font-size:21px}pre{padding:14px}}</style></head><body><main><nav><a href="QUICKSTART.html">使用说明</a><a href="INDEX.html">文档目录</a></nav><h1 id="_1">大模型怎么查看</h1>
+<p><a href="QUICKSTART.html">使用说明</a> · <a href="INDEX.html">文档目录</a></p>
+<p>双击 <code>D:\SiliconDevine.js\SiliconDevine.exe</code>，在「从示例开始」选择 <strong>DeepSeek-V3、GLM-4.5 或 MiniMax-M1</strong>，点击「进入模型空间」。网页的「模型库 → 大模型结构」也能直接切换。</p>
+<p>总览读取对应配置，不下载完整权重。内置示例还附带从参考代码捕获的缩小配置执行图；点击重复层进入，数值来自未训练的小型实例。完整检查点没有运行。</p>
+<h2 id="_2">看图</h2>
+<ul>
+<li><strong>堆叠框</strong>：重复层。名称中的 ×58 表示 58 个独立层；点击查看一个结构模板。</li>
+<li><strong>圆环与汇聚线</strong>：注意力。展开可查看 QKV、位置编码、缓存与输出投影。</li>
+<li><strong>扇形分支</strong>：专家路由或专家组。专家总数、每个 Token 激活数写在模块名称中；图形数量只表示分组。</li>
+<li><strong>回环</strong>：Lightning Attention 的状态更新。</li>
+<li><strong>薄的刻面矩阵</strong>：模型参数；较厚的水晶：数据张量；缓存单独标识。</li>
+</ul>
+<p>玻璃分区概括整个逻辑张量，旁边保留完整形状。B 是 Batch，T 是本次序列长度，S 是含历史缓存的长度。结构模式没有数值颜色；动画表示通路，不表示模型实际选中了哪个专家。</p>
+<p>鼠标悬停会立即切到对应模块的通路；移开后恢复自动轮播。点击模块展开，点击「上一级」返回。原来的缩放、全屏、暂停和标牌显示设置都可继续使用。</p>
+<h2 id="_3">已核对的范围</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>示例</th>
+<th>主干</th>
+<th>重点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DeepSeek-V3</td>
+<td>61 层；前 3 层稠密，其余 58 层 MoE</td>
+<td>MLA 压缩 KV、独立位置分量、256 专家中选 8、共享专家</td>
+</tr>
+<tr>
+<td>GLM-4.5</td>
+<td>92 层；前 3 层稠密，其余 89 层 MoE</td>
+<td>96 个 Query 头 / 8 个 KV 头、QK Norm、160 专家中选 8</td>
+</tr>
+<tr>
+<td>MiniMax-M1-80k</td>
+<td>80 层；7 层 Lightning + 1 层全注意力，重复 10 次</td>
+<td>递归 KV 状态、输出门、32 专家中选 2、源码中的缩放残差</td>
+</tr>
+</tbody>
+</table></div>
+<p>显示的参数量是推理主干的逻辑参数统计，不包含 MTP、量化尺度、缓存和优化器状态。它不等于模型文件大小，也不表示单个 Token 激活的参数量。</p>
+<p>来源、提交号、配置版本和文件校验值保存在 <code>examples/upstream/large_models/SOURCE.json</code>。此版覆盖表中的具体实现；其他同名系列版本需要另行核对适配。</p>
+<h2 id="ide">在 IDE 中接入自己的配置</h2>
+<p>新建 Python 文件，写一个返回结构图的工厂函数：</p>
+<pre><code class="language-python">import json
+from silicondevine import architecture_from_config
+
+def build_model():
+    with open(r&quot;D:\MyModels\config.json&quot;, encoding=&quot;utf-8&quot;) as file:
+        config = json.load(file)
+    return architecture_from_config(config, &quot;glm45&quot;)
+</code></pre>
+<p>在启动器选择这个文件，工厂函数填 <code>build_model</code>。支持的适配器名称是 <code>deepseek_v3</code>、<code>glm45</code>、<code>minimax_m1</code>。配置必须对应适配器所支持的源码结构；任意修改 forward 后，需要导出实际执行图或编写新适配器。</p>
+<p>启动器会监视邻近 Python 文件。修改配置 JSON 后，请重新保存这个 Python 文件以刷新页面。</p>
+<p>已在 Python 中构造模型时，也可使用 <code>export_architecture(model)</code>。GLM-4.5 的原生类支持在 PyTorch <code>meta</code> 设备上创建，无需分配实际参数存储：</p>
+<pre><code class="language-python">import torch
+from transformers import Glm4MoeConfig, Glm4MoeForCausalLM
+from silicondevine import export_architecture
+
+def build_model():
+    config = Glm4MoeConfig.from_json_file(r&quot;D:\MyModels\config.json&quot;)
+    with torch.device(&quot;meta&quot;):
+        model = Glm4MoeForCausalLM(config)
+    return export_architecture(model)
+</code></pre>
+<p>这里读取模型配置并统计实际模块参数，不运行 forward。想看真实激活数值时，继续使用原来的 <code>return model, inputs</code>，先选能在本机运行的子模块。</p>
+<h2 id="_4">给新功能模块编写模板</h2>
+<p>Web API 新增 <code>defineArchitecture(name, scopes, entry)</code>。每个 scope 使用原有的 <code>nodes / tensors / inputs / outputs</code> 图格式；张量加 <code>representation: 'aggregate'</code>，保留真实逻辑形状，不填写模拟数值。节点使用 <code>op: 'structure'</code>。</p>
+<p>节点的 <code>attrs.scopeRef</code> 指向子模板；<code>attrs.repeat</code> 表示独立实例数量。<code>attrs.kind</code> 可选 <code>repeat</code>、<code>attention</code>、<code>router</code>、<code>experts</code>、<code>recurrent</code>、<code>ffn</code>、<code>gate</code>、<code>norm</code>、<code>rope</code>、<code>merge</code>、<code>projection</code>、<code>embedding</code>。它决定功能图形及结构色，不修改数值模式的颜色。</p>
+<p>框架校验引用、循环、重复次数和总规模。参数量按模板权重形状及重复次数计算；共享参数必须只声明一次，不能用 repeat 表示。每次只构建当前 scope 的几何。<code>aggregatePartition(tensor, tile)</code> 可读取每个分区所覆盖的逻辑范围，数字范围采用左闭右开区间。</p>
+<p>可参考 <code>python/silicondevine/architecture.py</code> 中已实现的模板组合。注册模板属于显式适配；框架不会仅凭类名就认定自定义代码实现了某种算法。</p></main></body></html>

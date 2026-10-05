@@ -21,12 +21,12 @@ export class ReceptiveFieldMotion {
     update(n: Operation | undefined, out: TensorPlane | undefined, index: number, planes: Map<string, TensorPlane>, tensors: Map<string, Tensor>) {
         this.cells.count = this.shells.count = 0;
         this.state = undefined;
-        if (!n?.op.startsWith('conv') || !out)
+        if (!n || (!n.op.startsWith('conv') && !['dynamic_conv2d','interpolate','grid_sample2d','unfold2d'].includes(n.op)) || !out)
             return;
         const x = planes.get(n.inputs[0]);
         if (!x)
             return;
-        const deps = operatorVisual(n.op).dependencies(n, out.tensor, index, tensors).filter(d => d.tensor === x.tensor.id), groups = new Map<string, T.Box3>(), rank = x.tensor.spatialRank ?? Number(n.op.match(/[123]/)?.[0] ?? 2), spatial = x.tensor.shape.length - rank;
+        const deps = operatorVisual(n.op).dependencies(n, out.tensor, index, tensors).filter(d => d.tensor === x.tensor.id), groups = new Map<string, T.Box3>(), rank = x.tensor.spatialRank ?? (n.op==='interpolate'?x.tensor.shape.length-2:Number(n.op.match(/[123]/)?.[0] ?? 2)), spatial = x.tensor.shape.length - rank;
         for (const d of deps) {
             const j = x.indices.indexOf(d.index);
             if (j < 0 || this.cells.count >= 512)
@@ -50,7 +50,7 @@ export class ReceptiveFieldMotion {
             this.shells.setMatrixAt(this.shells.count++, this.dummy.matrix);
         }
         this.cells.instanceMatrix.needsUpdate = this.shells.instanceMatrix.needsUpdate = true;
-        this.state = { output: coordinates(index, out.tensor.shape as number[]), visibleSamples: this.cells.count, totalSamples: deps.length, channels: groups.size, kernel: (tensors.get(n.parameters?.weight ?? '')?.shape.slice(2) ?? []) as number[], stride: n.attrs?.stride ?? 1, dilation: n.attrs?.dilation ?? 1 };
+        this.state = { output: coordinates(index, out.tensor.shape as number[]), visibleSamples: this.cells.count, totalSamples: deps.length, channels: groups.size, kernel: (tensors.get(n.parameters?.weight ?? '')?.shape.slice(n.op==='dynamic_conv2d'?3:2) ?? []) as number[], stride: n.attrs?.stride ?? 1, dilation: n.attrs?.dilation ?? 1 };
     }
 }
 /** Each flow item is p(query,key) times a real V(key,channel), arriving in the corresponding output token. */
@@ -85,7 +85,7 @@ export class AttentionTokenMotion {
         for (const yi of columns) {
             const to = yp.positions[yp.indices.indexOf(yi)], c = yi % width;
             for (let k = 0; k < Math.min(keys, 32); k++) {
-                const weight = probabilities[k], vi = (headIndex * keys + k) * width + c, j = vp.indices.indexOf(vi);
+                const weight = probabilities[k], vi = ((headIndex % Math.max(1,Number(v.shape.slice(0,-2).reduce<number>((a,b)=>a*Number(b),1)))) * keys + k) * width + c, j = vp.indices.indexOf(vi);
                 if (j < 0 || !Number.isFinite(weight) || weight <= 0 || this.cubes.count >= 256)
                     continue;
                 const from = vp.positions[j], a = new T.Vector3(...from), b = new T.Vector3(...to), delta = b.clone().sub(a), length = delta.length();

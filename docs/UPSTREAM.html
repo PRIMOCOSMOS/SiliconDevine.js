@@ -1,0 +1,18 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>代码为依据的模型接入 · 0.4</title><style>body{margin:0;background:#080c12;color:#eef3f8;font:16px/1.8 "Segoe UI","Microsoft YaHei UI",sans-serif}main{max-width:920px;margin:48px auto;padding:0 24px 80px}h1{font-size:36px;line-height:1.3}h2{font-size:23px;margin:48px 0 16px;scroll-margin-top:20px}h3{font-size:19px;margin-top:30px}p,li{color:#d0dce6}a{color:#a9d9f7}pre{padding:20px;background:#151f2b;border-radius:12px;overflow:auto;font:14px/1.7 Consolas,monospace}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}table{border-collapse:collapse;width:100%;min-width:460px;font-size:14px}td,th{padding:12px;text-align:left;border-bottom:1px solid #344452;vertical-align:top}.table-scroll{overflow:auto}nav{padding:18px 0;border-bottom:1px solid #344452}nav a{margin-right:18px;display:inline-block}a:focus-visible{outline:2px solid #b5e2ff;outline-offset:4px}@media(max-width:600px){main{padding:0 16px 48px;margin-top:24px}h1{font-size:28px}h2{font-size:21px}pre{padding:14px}}</style></head><body><main><nav><a href="QUICKSTART.html">使用说明</a><a href="INDEX.html">文档目录</a></nav><h1 id="04">代码为依据的模型接入 · 0.4</h1>
+<p><a href="QUICKSTART.html">使用说明</a> · <a href="INDEX.html">文档目录</a></p>
+<p>启动器选择「SAB · 作者实现」「ISAB · 作者实现」或「LLaMA · Transformers」。网页在「上游原始实现」分组中提供离线捕获。examples/official_models.py 只实例化源类、配置尺寸和输入，不重写 forward。</p>
+<h2 id="_1">来源与运行边界</h2>
+<p>SAB、ISAB：直接加载 juho-lee/set_transformer 的 modules.py，固定提交 73432c640ac78140496d6738416c54d32c686d65。原文件及 MIT 许可证随包保留，SOURCE.json 记录 SHA256。测试会检查原文件未被修改。使用 ln=True，dim=16、4 heads、N=6；ISAB m=3。该实现按 sqrt(dim_V) 缩放，框架直接捕获实际除法。代码：https://github.com/juho-lee/set_transformer/tree/73432c640ac78140496d6738416c54d32c686d65</p>
+<p>LLaMA：直接实例化 Hugging Face Transformers 4.57.1 的 LlamaForCausalLM。这是 Transformers 维护的原生实现，不冒称 Meta 仓库源码。缩小配置2层、hidden16、FFN32、4 query heads / 2 KV heads，随机权重。使用 eager attention、use_cache=False，传入显式等价的因果 mask，避免捕获输入准备中的 Python 控制流。原实现的 RMSNorm、RoPE、GQA、SwiGLU 与投影均来自库代码。代码：https://github.com/huggingface/transformers/blob/v4.57.1/src/transformers/models/llama/modeling_llama.py</p>
+<p>当前已安装该版本；新环境可运行 python -m pip install -e "./python[llama]"。没有该依赖时，离线图仍可查看，实时模型会明确报告导入错误。没有下载预训练权重，不包含 KV-cache 增量生成。</p>
+<p>旧版 llm_models.py 和 set_attention.py 保留为明确标记的自建测试夹具；不作为上游实现的证据。</p>
+<h2 id="_2">从代码到结构</h2>
+<p>基础单元由实际 ATen / FX 操作识别。新增 div、pow、mean、rsqrt、neg、sin/cos、dtype cast、expand；不会把未知运算猜成现有结构。禁用的 autocast 上下文可安全展开函数体；启用的 autocast 不作相同改写。</p>
+<p>注意力区域通过 matmul → 缩放/掩码 → softmax → matmul 的实际依赖识别，并回溯 Q/K/V 的线性投影。残差须满足形状相同且一个输入是另一分支的祖先。测试验证仅命名 Attention 的 ReLU 模块不会被识别成注意力。</p>
+<p>捕获包含原生模块完整类名、代码文件/行号/校验值和操作代码调用栈。识别结果存入 functionalUnits、projectionRoles、attention、residualInput。LLaMA 的 apply_rotary_pos_emb 根据实际捕获调用位置聚合为 RoPE 功能单元；点击进入原始函数体，上一级返回。原始图保留全部165个算子。当前功能识别覆盖这些明确模式，尚不承诺自动理解任意 Python 函数。</p>
+<h2 id="_3">如何阅读动效</h2>
+<p>Q/K/V 投影显示各自 W 与真实输入的联系；QKᵀ 是各 Query 与 Key 的匹配；概率矩阵每行表示一个 Query 对 Key 的分配。选择加权结果时，V 的元素按对应概率着色并流向该 Query 的输出 Token，连线粗细表示概率。输出晶体仍显示 PyTorch 实际累加结果，移动晶体表示 p×V 的贡献。不会把插值过程冒称新的 PyTorch 中间结果。</p>
+<p>CNN 感受野按 Batch/通道分别覆盖真实参与坐标；金色元素为当前输出的输入依赖，浅色包络仅表示空间范围（膨胀卷积的间隙不是额外采样）。状态栏报告可见/总依赖数量和核尺寸，窗口外元素不伪造。残差金色旁路持续可见，仅当前区域播放箭头，逐元素动效沿同一侧路汇合。</p>
+<p>文字使用世界空间的无边框排版；标题、形状、坐标窗口三级信息，近侧摆放并按投影避让，缩放补偿有上限。它们仍随空间旋转，而非屏幕浮窗。复杂图仅建立当前区域的标量连线与动效，保留总览/细节分离。</p>
+<h2 id="_4">验证</h2>
+<p>16项 Python 测试；原有764+4342个标量；13份 LLM/注意力图的63013个标量及依赖坐标通过。上游模型完整输出与导出比较容差3e-6，JS标量运算容差2e-5。浏览器脚本 tests/browser-v04.mjs 覆盖官方 Q/K/V、概率与Token汇聚、双阶段ISAB、RoPE下钻返回、2D/3D感受野和残差，以及移动端。</p></main></body></html>

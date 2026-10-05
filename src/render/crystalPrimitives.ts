@@ -15,12 +15,14 @@ const positive = new T.Color('#78cde7'), negative = new T.Color('#e9af83'), sele
 /** Uniform tensor cells: values affect tint, never geometry. Four instanced draws per tensor. */
 export function createCrystalTensor(parent: T.Group, count: number, size = .42, style?: {
     valueEdges?: boolean;
+    parameter?: boolean;
     bodyOpacity?: number;
     edgeOpacity?: number;
     valueScale?: number | (() => number);
 }) {
     const group = new T.Group();
     group.userData.crystalTensor = true;
+    group.userData.parameterTensor = !!style?.parameter;
     parent.add(group);
     const cube = new T.BoxGeometry(size, size, size);
     const edgeParts: T.BufferGeometry[] = [];
@@ -35,8 +37,10 @@ export function createCrystalTensor(parent: T.Group, count: number, size = .42, 
                 edgeParts.push(new T.BoxGeometry(...dimensions as Position3).translate(...position as Position3));
             }
     const edges = mergeGeometries(edgeParts);
+    if(style?.parameter) { cube.scale(1,.42,1); edges.scale(1,.42,1); }
     edgeParts.forEach(g => g.dispose());
     const bodyMaterial = new T.MeshPhysicalMaterial({ color: '#ffffff', roughness: .13, metalness: .08, clearcoat: 1, clearcoatRoughness: .08, transparent: true, opacity: .12, depthWrite: false });
+    if(style?.parameter) {bodyMaterial.metalness=.5;bodyMaterial.roughness=.32;}
     const edgeMaterial = new T.MeshBasicMaterial({ color: '#a3d4e4', transparent: true, opacity: .25, depthWrite: false });
     if (style?.bodyOpacity !== undefined)
         bodyMaterial.opacity = style.bodyOpacity;

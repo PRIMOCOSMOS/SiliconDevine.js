@@ -1,0 +1,1768 @@
+{
+  "format": "silicondevine",
+  "version": 1,
+  "name": "ConditionalAttention",
+  "producer": {
+    "backend": "pytorch-export",
+    "version": "2.9.0+cpu"
+  },
+  "constraints": {},
+  "modules": [
+    {
+      "path": "q",
+      "type": "Linear",
+      "qualified": "torch.nn.modules.linear.Linear",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py",
+        "line": 53,
+        "sha256": "2bc88db08164767dbe2930978d33fa33a879478f73a3bcffedcd58c6b03a7b79"
+      }
+    },
+    {
+      "path": "k",
+      "type": "Linear",
+      "qualified": "torch.nn.modules.linear.Linear",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py",
+        "line": 53,
+        "sha256": "2bc88db08164767dbe2930978d33fa33a879478f73a3bcffedcd58c6b03a7b79"
+      }
+    },
+    {
+      "path": "v",
+      "type": "Linear",
+      "qualified": "torch.nn.modules.linear.Linear",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py",
+        "line": 53,
+        "sha256": "2bc88db08164767dbe2930978d33fa33a879478f73a3bcffedcd58c6b03a7b79"
+      }
+    },
+    {
+      "path": "out",
+      "type": "Linear",
+      "qualified": "torch.nn.modules.linear.Linear",
+      "code": {
+        "file": "D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py",
+        "line": 53,
+        "sha256": "2bc88db08164767dbe2930978d33fa33a879478f73a3bcffedcd58c6b03a7b79"
+      }
+    }
+  ],
+  "tensors": [
+    {
+      "id": "q_weight",
+      "shape": [
+        4,
+        4
+      ],
+      "dtype": "float32",
+      "role": "parameter",
+      "stride": [
+        4,
+        1
+      ],
+      "source": "q.weight",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.2635536193847656,
+          -0.2733820080757141,
+          0.30053019523620605,
+          -0.33081233501434326,
+          -0.23504161834716797,
+          0.2719917893409729,
+          -0.3718116879463196,
+          0.24521404504776,
+          0.3044676184654236,
+          0.13570910692214966,
+          0.08961641788482666,
+          0.19328957796096802,
+          0.378248929977417,
+          0.04067564010620117,
+          -0.3599775433540344,
+          0.4613439440727234
+        ]
+      },
+      "stats": {
+        "min": -0.3718116879463196,
+        "max": 0.4613439440727234,
+        "absmax": 0.4613439440727234
+      }
+    },
+    {
+      "id": "q_bias",
+      "shape": [
+        4
+      ],
+      "dtype": "float32",
+      "role": "parameter",
+      "stride": [
+        1
+      ],
+      "source": "q.bias",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.36664879322052,
+          -0.011584877967834473,
+          -0.2922983169555664,
+          -0.19365954399108887
+        ]
+      },
+      "stats": {
+        "min": -0.2922983169555664,
+        "max": 0.36664879322052,
+        "absmax": 0.36664879322052
+      }
+    },
+    {
+      "id": "k_weight",
+      "shape": [
+        4,
+        6
+      ],
+      "dtype": "float32",
+      "role": "parameter",
+      "stride": [
+        6,
+        1
+      ],
+      "source": "k.weight",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.36046481132507324,
+          0.2705509662628174,
+          -0.03542757034301758,
+          0.2812774181365967,
+          0.15371429920196533,
+          -0.08099004626274109,
+          -0.2610507607460022,
+          0.1420840620994568,
+          -0.26194891333580017,
+          -0.09072816371917725,
+          0.24269592761993408,
+          -0.22230687737464905,
+          -0.019971907138824463,
+          -0.05541059374809265,
+          0.04678115248680115,
+          0.3930712342262268,
+          0.23864871263504028,
+          -0.1532774269580841,
+          0.3612797260284424,
+          -0.13277849555015564,
+          0.16817742586135864,
+          0.16893410682678223,
+          -0.012360692024230957,
+          -0.3799092173576355
+        ]
+      },
+      "stats": {
+        "min": -0.3799092173576355,
+        "max": 0.3930712342262268,
+        "absmax": 0.3930712342262268
+      }
+    },
+    {
+      "id": "k_bias",
+      "shape": [
+        4
+      ],
+      "dtype": "float32",
+      "role": "parameter",
+      "stride": [
+        1
+      ],
+      "source": "k.bias",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.38380080461502075,
+          -0.09430009126663208,
+          0.27801984548568726,
+          -0.24485798180103302
+        ]
+      },
+      "stats": {
+        "min": -0.24485798180103302,
+        "max": 0.38380080461502075,
+        "absmax": 0.38380080461502075
+      }
+    },
+    {
+      "id": "v_weight",
+      "shape": [
+        4,
+        6
+      ],
+      "dtype": "float32",
+      "role": "parameter",
+      "stride": [
+        6,
+        1
+      ],
+      "source": "v.weight",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.041658371686935425,
+          0.3499917984008789,
+          -0.3542465269565582,
+          0.015755802392959595,
+          -0.005325913429260254,
+          -0.34892261028289795,
+          -0.07908093929290771,
+          -0.37421077489852905,
+          0.08820673823356628,
+          0.0687534511089325,
+          0.23358500003814697,
+          0.010211020708084106,
+          -0.16438531875610352,
+          -0.14719164371490479,
+          -0.15241503715515137,
+          0.31759709119796753,
+          0.13082832098007202,
+          -0.40647459030151367,
+          0.07298487424850464,
+          -0.054510295391082764,
+          0.29782742261886597,
+          -0.11941248178482056,
+          0.3563380837440491,
+          0.126151442527771
+        ]
+      },
+      "stats": {
+        "min": -0.40647459030151367,
+        "max": 0.3563380837440491,
+        "absmax": 0.40647459030151367
+      }
+    },
+    {
+      "id": "v_bias",
+      "shape": [
+        4
+      ],
+      "dtype": "float32",
+      "role": "parameter",
+      "stride": [
+        1
+      ],
+      "source": "v.bias",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.36782336235046387,
+          0.08586931228637695,
+          -0.09318646788597107,
+          0.20436370372772217
+        ]
+      },
+      "stats": {
+        "min": -0.36782336235046387,
+        "max": 0.20436370372772217,
+        "absmax": 0.36782336235046387
+      }
+    },
+    {
+      "id": "out_weight",
+      "shape": [
+        4,
+        4
+      ],
+      "dtype": "float32",
+      "role": "parameter",
+      "stride": [
+        4,
+        1
+      ],
+      "source": "out.weight",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.429161012172699,
+          -0.03657793998718262,
+          0.3304489850997925,
+          0.17719703912734985,
+          0.2352643609046936,
+          0.42333686351776123,
+          0.20416384935379028,
+          0.16243058443069458,
+          0.10310453176498413,
+          0.03290855884552002,
+          0.4351809024810791,
+          -0.11530852317810059,
+          0.06580144166946411,
+          0.006948411464691162,
+          -0.13821959495544434,
+          0.365578830242157
+        ]
+      },
+      "stats": {
+        "min": -0.429161012172699,
+        "max": 0.4351809024810791,
+        "absmax": 0.4351809024810791
+      }
+    },
+    {
+      "id": "out_bias",
+      "shape": [
+        4
+      ],
+      "dtype": "float32",
+      "role": "parameter",
+      "stride": [
+        1
+      ],
+      "source": "out.bias",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.02805614471435547,
+          -0.4252694249153137,
+          0.339163601398468,
+          -0.16547352075576782
+        ]
+      },
+      "stats": {
+        "min": -0.4252694249153137,
+        "max": 0.339163601398468,
+        "absmax": 0.4252694249153137
+      }
+    },
+    {
+      "id": "x",
+      "shape": [
+        1,
+        3,
+        4
+      ],
+      "dtype": "float32",
+      "role": "input",
+      "stride": [
+        12,
+        4,
+        1
+      ],
+      "source": "x",
+      "data": {
+        "offset": 0,
+        "values": [
+          -1.029786467552185,
+          0.8418395519256592,
+          -2.40372371673584,
+          -0.7214899063110352,
+          0.8789268732070923,
+          -1.556331753730774,
+          0.022696413099765778,
+          -0.8227455615997314,
+          0.9545934200286865,
+          0.49359533190727234,
+          0.638683021068573,
+          -0.6653057336807251
+        ]
+      },
+      "stats": {
+        "min": -2.40372371673584,
+        "max": 0.9545934200286865,
+        "absmax": 2.40372371673584
+      }
+    },
+    {
+      "id": "condition",
+      "shape": [
+        1,
+        4,
+        6
+      ],
+      "dtype": "float32",
+      "role": "input",
+      "stride": [
+        24,
+        6,
+        1
+      ],
+      "source": "condition",
+      "data": {
+        "offset": 0,
+        "values": [
+          2.0916075706481934,
+          -0.6246158480644226,
+          -0.3783780336380005,
+          0.9677039980888367,
+          0.6893340349197388,
+          -2.2847275733947754,
+          -0.5225687623023987,
+          -0.5175061225891113,
+          0.10168912261724472,
+          -2.7756636142730713,
+          0.26445573568344116,
+          0.09937956929206848,
+          -0.108049176633358,
+          1.880731225013733,
+          -0.02775568887591362,
+          0.8688763976097107,
+          1.723007082939148,
+          1.7774540185928345,
+          -0.04389683157205582,
+          0.3433404862880707,
+          -1.786901593208313,
+          -2.0861928462982178,
+          -0.5618788003921509,
+          1.347373127937317
+        ]
+      },
+      "stats": {
+        "min": -2.7756636142730713,
+        "max": 2.0916075706481934,
+        "absmax": 2.7756636142730713
+      }
+    },
+    {
+      "id": "mask",
+      "shape": [
+        3,
+        4
+      ],
+      "dtype": "float32",
+      "role": "input",
+      "stride": [
+        4,
+        1
+      ],
+      "source": "mask",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "stats": {
+        "min": 0.0,
+        "max": 0.0,
+        "absmax": 0.0
+      }
+    },
+    {
+      "id": "linear",
+      "shape": [
+        1,
+        3,
+        4
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        12,
+        4,
+        1
+      ],
+      "source": "aten.linear.default",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.07580482959747314,
+          1.1762443780899048,
+          -0.8464592099189758,
+          -0.016501247882843018,
+          0.8394728302955627,
+          -0.8516663312911987,
+          -0.3928960859775543,
+          -0.3122500479221344,
+          0.39215701818466187,
+          -0.5023123025894165,
+          -0.00603032112121582,
+          -0.34935462474823
+        ]
+      },
+      "stats": {
+        "min": -0.8516663312911987,
+        "max": 1.1762443780899048,
+        "absmax": 1.1762443780899048
+      }
+    },
+    {
+      "id": "reshape",
+      "shape": [
+        1,
+        3,
+        2,
+        2
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        12,
+        4,
+        2,
+        1
+      ],
+      "source": "aten.reshape.default",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.07580482959747314,
+          1.1762443780899048,
+          -0.8464592099189758,
+          -0.016501247882843018,
+          0.8394728302955627,
+          -0.8516663312911987,
+          -0.3928960859775543,
+          -0.3122500479221344,
+          0.39215701818466187,
+          -0.5023123025894165,
+          -0.00603032112121582,
+          -0.34935462474823
+        ]
+      },
+      "stats": {
+        "min": -0.8516663312911987,
+        "max": 1.1762443780899048,
+        "absmax": 1.1762443780899048
+      }
+    },
+    {
+      "id": "transpose",
+      "shape": [
+        1,
+        2,
+        3,
+        2
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        12,
+        2,
+        4,
+        1
+      ],
+      "source": "aten.transpose.int",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.07580482959747314,
+          1.1762443780899048,
+          0.8394728302955627,
+          -0.8516663312911987,
+          0.39215701818466187,
+          -0.5023123025894165,
+          -0.8464592099189758,
+          -0.016501247882843018,
+          -0.3928960859775543,
+          -0.3122500479221344,
+          -0.00603032112121582,
+          -0.34935462474823
+        ]
+      },
+      "stats": {
+        "min": -0.8516663312911987,
+        "max": 1.1762443780899048,
+        "absmax": 1.1762443780899048
+      },
+      "semantic": "Q"
+    },
+    {
+      "id": "linear_1",
+      "shape": [
+        1,
+        4,
+        4
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        16,
+        4,
+        1
+      ],
+      "source": "aten.linear.default",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.03745841979980469,
+          -0.04253685474395752,
+          1.1482383012771606,
+          1.5530450344085693,
+          -0.31957560777664185,
+          0.2358705997467041,
+          -0.7212652564048767,
+          -0.8577643036842346,
+          1.2978558540344238,
+          0.15259374678134918,
+          0.6549471020698547,
+          -1.0880683660507202,
+          -0.22647076845169067,
+          0.18739980459213257,
+          -0.9843574166297913,
+          -1.464185118675232
+        ]
+      },
+      "stats": {
+        "min": -1.464185118675232,
+        "max": 1.5530450344085693,
+        "absmax": 1.5530450344085693
+      }
+    },
+    {
+      "id": "reshape_1",
+      "shape": [
+        1,
+        4,
+        2,
+        2
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        16,
+        4,
+        2,
+        1
+      ],
+      "source": "aten.reshape.default",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.03745841979980469,
+          -0.04253685474395752,
+          1.1482383012771606,
+          1.5530450344085693,
+          -0.31957560777664185,
+          0.2358705997467041,
+          -0.7212652564048767,
+          -0.8577643036842346,
+          1.2978558540344238,
+          0.15259374678134918,
+          0.6549471020698547,
+          -1.0880683660507202,
+          -0.22647076845169067,
+          0.18739980459213257,
+          -0.9843574166297913,
+          -1.464185118675232
+        ]
+      },
+      "stats": {
+        "min": -1.464185118675232,
+        "max": 1.5530450344085693,
+        "absmax": 1.5530450344085693
+      }
+    },
+    {
+      "id": "transpose_1",
+      "shape": [
+        1,
+        2,
+        4,
+        2
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        16,
+        2,
+        4,
+        1
+      ],
+      "source": "aten.transpose.int",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.03745841979980469,
+          -0.04253685474395752,
+          -0.31957560777664185,
+          0.2358705997467041,
+          1.2978558540344238,
+          0.15259374678134918,
+          -0.22647076845169067,
+          0.18739980459213257,
+          1.1482383012771606,
+          1.5530450344085693,
+          -0.7212652564048767,
+          -0.8577643036842346,
+          0.6549471020698547,
+          -1.0880683660507202,
+          -0.9843574166297913,
+          -1.464185118675232
+        ]
+      },
+      "stats": {
+        "min": -1.464185118675232,
+        "max": 1.5530450344085693,
+        "absmax": 1.5530450344085693
+      }
+    },
+    {
+      "id": "linear_2",
+      "shape": [
+        1,
+        4,
+        4
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        16,
+        4,
+        1
+      ],
+      "source": "aten.linear.default",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.2692410945892334,
+          0.32504719495773315,
+          1.038800835609436,
+          0.1202344298362732,
+          -0.6430169939994812,
+          0.2017717957496643,
+          -0.8339498043060303,
+          0.6629407405853271,
+          -0.3109300136566162,
+          -0.13146767020225525,
+          -0.5691414475440979,
+          0.8201388716697693,
+          -0.11283069849014282,
+          -0.4576790928840637,
+          -1.147908091545105,
+          -0.13087224960327148
+        ]
+      },
+      "stats": {
+        "min": -1.147908091545105,
+        "max": 1.038800835609436,
+        "absmax": 1.147908091545105
+      }
+    },
+    {
+      "id": "reshape_2",
+      "shape": [
+        1,
+        4,
+        2,
+        2
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        16,
+        4,
+        2,
+        1
+      ],
+      "source": "aten.reshape.default",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.2692410945892334,
+          0.32504719495773315,
+          1.038800835609436,
+          0.1202344298362732,
+          -0.6430169939994812,
+          0.2017717957496643,
+          -0.8339498043060303,
+          0.6629407405853271,
+          -0.3109300136566162,
+          -0.13146767020225525,
+          -0.5691414475440979,
+          0.8201388716697693,
+          -0.11283069849014282,
+          -0.4576790928840637,
+          -1.147908091545105,
+          -0.13087224960327148
+        ]
+      },
+      "stats": {
+        "min": -1.147908091545105,
+        "max": 1.038800835609436,
+        "absmax": 1.147908091545105
+      }
+    },
+    {
+      "id": "transpose_2",
+      "shape": [
+        1,
+        2,
+        4,
+        2
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        16,
+        2,
+        4,
+        1
+      ],
+      "source": "aten.transpose.int",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.2692410945892334,
+          0.32504719495773315,
+          -0.6430169939994812,
+          0.2017717957496643,
+          -0.3109300136566162,
+          -0.13146767020225525,
+          -0.11283069849014282,
+          -0.4576790928840637,
+          1.038800835609436,
+          0.1202344298362732,
+          -0.8339498043060303,
+          0.6629407405853271,
+          -0.5691414475440979,
+          0.8201388716697693,
+          -1.147908091545105,
+          -0.13087224960327148
+        ]
+      },
+      "stats": {
+        "min": -1.147908091545105,
+        "max": 1.038800835609436,
+        "absmax": 1.147908091545105
+      },
+      "semantic": "V"
+    },
+    {
+      "id": "transpose_3",
+      "shape": [
+        1,
+        2,
+        2,
+        4
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        16,
+        2,
+        1,
+        4
+      ],
+      "source": "aten.transpose.int",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.03745841979980469,
+          -0.31957560777664185,
+          1.2978558540344238,
+          -0.22647076845169067,
+          -0.04253685474395752,
+          0.2358705997467041,
+          0.15259374678134918,
+          0.18739980459213257,
+          1.1482383012771606,
+          -0.7212652564048767,
+          0.6549471020698547,
+          -0.9843574166297913,
+          1.5530450344085693,
+          -0.8577643036842346,
+          -1.0880683660507202,
+          -1.464185118675232
+        ]
+      },
+      "stats": {
+        "min": -1.464185118675232,
+        "max": 1.5530450344085693,
+        "absmax": 1.5530450344085693
+      },
+      "semantic": "Kᵀ"
+    },
+    {
+      "id": "matmul",
+      "shape": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        24,
+        12,
+        4,
+        1
+      ],
+      "source": "aten.matmul.default",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.052873264998197556,
+          0.30166685581207275,
+          0.08110380172729492,
+          0.2375955432653427,
+          0.06767253577709198,
+          -0.4691581130027771,
+          0.9595557451248169,
+          -0.3497181534767151,
+          0.03605636954307556,
+          -0.24380451440811157,
+          0.43231356143951416,
+          -0.18294532597064972,
+          -0.9975640773773193,
+          0.6246758103370667,
+          -0.5364315509796143,
+          0.8573792576789856,
+          -0.9360767602920532,
+          0.5512192249298096,
+          0.08242323994636536,
+          0.8439420461654663,
+          -0.5494877099990845,
+          0.3040134012699127,
+          0.37617215514183044,
+          0.5174558162689209
+        ]
+      },
+      "stats": {
+        "min": -0.9975640773773193,
+        "max": 0.9595557451248169,
+        "absmax": 0.9975640773773193
+      }
+    },
+    {
+      "id": "mul",
+      "shape": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        24,
+        12,
+        4,
+        1
+      ],
+      "source": "aten.mul.Tensor",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.03738704323768616,
+          0.21331067383289337,
+          0.05734904855489731,
+          0.16800542175769806,
+          0.04785170778632164,
+          -0.33174487948417664,
+          0.6785083413124084,
+          -0.2472880780696869,
+          0.025495702400803566,
+          -0.17239582538604736,
+          0.30569183826446533,
+          -0.12936188280582428,
+          -0.7053843140602112,
+          0.44171249866485596,
+          -0.3793143928050995,
+          0.6062586903572083,
+          -0.6619062423706055,
+          0.38977083563804626,
+          0.0582820326089859,
+          0.5967571139335632,
+          -0.3885464668273926,
+          0.2149699330329895,
+          0.2659938633441925,
+          0.3658965229988098
+        ]
+      },
+      "stats": {
+        "min": -0.7053843140602112,
+        "max": 0.6785083413124084,
+        "absmax": 0.7053843140602112
+      }
+    },
+    {
+      "id": "mul:scalar:1",
+      "shape": [],
+      "dtype": "float32",
+      "role": "constant",
+      "stride": [],
+      "data": {
+        "offset": 0,
+        "values": [
+          0.7071067690849304
+        ]
+      },
+      "stats": {
+        "min": 0.7071067690849304,
+        "max": 0.7071067690849304,
+        "absmax": 0.7071067690849304
+      }
+    },
+    {
+      "id": "add",
+      "shape": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        24,
+        12,
+        4,
+        1
+      ],
+      "source": "aten.add.Tensor",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.03738704323768616,
+          0.21331067383289337,
+          0.05734904855489731,
+          0.16800542175769806,
+          0.04785170778632164,
+          -0.33174487948417664,
+          0.6785083413124084,
+          -0.2472880780696869,
+          0.025495702400803566,
+          -0.17239582538604736,
+          0.30569183826446533,
+          -0.12936188280582428,
+          -0.7053843140602112,
+          0.44171249866485596,
+          -0.3793143928050995,
+          0.6062586903572083,
+          -0.6619062423706055,
+          0.38977083563804626,
+          0.0582820326089859,
+          0.5967571139335632,
+          -0.3885464668273926,
+          0.2149699330329895,
+          0.2659938633441925,
+          0.3658965229988098
+        ]
+      },
+      "stats": {
+        "min": -0.7053843140602112,
+        "max": 0.6785083413124084,
+        "absmax": 0.7053843140602112
+      }
+    },
+    {
+      "id": "softmax",
+      "shape": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        24,
+        12,
+        4,
+        1
+      ],
+      "source": "aten.softmax.int",
+      "data": {
+        "offset": 0,
+        "values": [
+          0.21681170165538788,
+          0.2785860300064087,
+          0.23835597932338715,
+          0.2662462592124939,
+          0.2321581393480301,
+          0.15882806479930878,
+          0.4361889064311981,
+          0.1728249043226242,
+          0.24997593462467194,
+          0.20509496331214905,
+          0.33081549406051636,
+          0.21411368250846863,
+          0.10814531147480011,
+          0.3405536413192749,
+          0.14983664453029633,
+          0.4014643728733063,
+          0.10595487803220749,
+          0.30329030752182007,
+          0.2177182137966156,
+          0.373036652803421,
+          0.14536526799201965,
+          0.26580584049224854,
+          0.279720276594162,
+          0.3091086149215698
+        ]
+      },
+      "stats": {
+        "min": 0.10595487803220749,
+        "max": 0.4361889064311981,
+        "absmax": 0.4361889064311981
+      },
+      "semantic": "A",
+      "axes": [
+        "B",
+        "H",
+        "Query",
+        "Key"
+      ]
+    },
+    {
+      "id": "matmul_1",
+      "shape": [
+        1,
+        2,
+        3,
+        2
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        12,
+        6,
+        2,
+        1
+      ],
+      "source": "aten.matmul.default",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.22491370141506195,
+          -0.026506610214710236,
+          -0.19474682211875916,
+          -0.028933707624673843,
+          -0.19159482419490814,
+          -0.01885054260492325,
+          -0.7177855968475342,
+          0.3091159760951996,
+          -0.6949870586395264,
+          0.3435419499874115,
+          -0.5846918225288391,
+          0.38264715671539307
+        ]
+      },
+      "stats": {
+        "min": -0.7177855968475342,
+        "max": 0.38264715671539307,
+        "absmax": 0.7177855968475342
+      },
+      "semantic": "Context"
+    },
+    {
+      "id": "transpose_4",
+      "shape": [
+        1,
+        3,
+        2,
+        2
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        12,
+        2,
+        6,
+        1
+      ],
+      "source": "aten.transpose.int",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.22491370141506195,
+          -0.026506610214710236,
+          -0.7177855968475342,
+          0.3091159760951996,
+          -0.19474682211875916,
+          -0.028933707624673843,
+          -0.6949870586395264,
+          0.3435419499874115,
+          -0.19159482419490814,
+          -0.01885054260492325,
+          -0.5846918225288391,
+          0.38264715671539307
+        ]
+      },
+      "stats": {
+        "min": -0.7177855968475342,
+        "max": 0.38264715671539307,
+        "absmax": 0.7177855968475342
+      }
+    },
+    {
+      "id": "reshape_3",
+      "shape": [
+        1,
+        3,
+        4
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        12,
+        4,
+        1
+      ],
+      "source": "aten.reshape.default",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.22491370141506195,
+          -0.026506610214710236,
+          -0.7177855968475342,
+          0.3091159760951996,
+          -0.19474682211875916,
+          -0.028933707624673843,
+          -0.6949870586395264,
+          0.3435419499874115,
+          -0.19159482419490814,
+          -0.01885054260492325,
+          -0.5846918225288391,
+          0.38264715671539307
+        ]
+      },
+      "stats": {
+        "min": -0.7177855968475342,
+        "max": 0.38264715671539307,
+        "absmax": 0.7177855968475342
+      }
+    },
+    {
+      "id": "linear_3",
+      "shape": [
+        1,
+        3,
+        4
+      ],
+      "dtype": "float32",
+      "role": "activation",
+      "stride": [
+        12,
+        4,
+        1
+      ],
+      "source": "aten.linear.default",
+      "data": {
+        "offset": 0,
+        "values": [
+          -0.056867197155952454,
+          -0.5857408046722412,
+          -0.032908618450164795,
+          0.03176094591617584,
+          -0.05609092116355896,
+          -0.5694246292114258,
+          -0.023926258087158203,
+          0.043163299560546875,
+          -0.014436185359954834,
+          -0.5355443358421326,
+          0.020219773054122925,
+          0.0424918532371521
+        ]
+      },
+      "stats": {
+        "min": -0.5857408046722412,
+        "max": 0.043163299560546875,
+        "absmax": 0.5857408046722412
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "linear",
+      "name": "Q 投影 · q",
+      "op": "linear",
+      "inputs": [
+        "x"
+      ],
+      "outputs": [
+        "linear"
+      ],
+      "parameters": {
+        "weight": "q_weight",
+        "bias": "q_bias"
+      },
+      "attrs": {
+        "arguments": [],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 38, in forward\n    q=self.q(x).reshape(b,t,self.heads,self.head_dim).transpose(1,2)\n  File \"D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py\", line 134, in forward\n    return F.linear(input, self.weight, self.bias)",
+        "projectionRoles": [
+          "Q"
+        ]
+      },
+      "group": "q",
+      "source": "aten.linear.default"
+    },
+    {
+      "id": "reshape",
+      "name": "reshape",
+      "op": "reshape",
+      "inputs": [
+        "linear"
+      ],
+      "outputs": [
+        "reshape"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          [
+            1,
+            3,
+            2,
+            2
+          ]
+        ],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 38, in forward\n    q=self.q(x).reshape(b,t,self.heads,self.head_dim).transpose(1,2)"
+      },
+      "group": "reshape",
+      "source": "aten.reshape.default"
+    },
+    {
+      "id": "transpose",
+      "name": "transpose",
+      "op": "transpose",
+      "inputs": [
+        "reshape"
+      ],
+      "outputs": [
+        "transpose"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          1,
+          2
+        ],
+        "dims": [
+          1,
+          2
+        ],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 38, in forward\n    q=self.q(x).reshape(b,t,self.heads,self.head_dim).transpose(1,2)"
+      },
+      "group": "transpose",
+      "source": "aten.transpose.int"
+    },
+    {
+      "id": "linear_1",
+      "name": "K 投影 · k",
+      "op": "linear",
+      "inputs": [
+        "condition"
+      ],
+      "outputs": [
+        "linear_1"
+      ],
+      "parameters": {
+        "weight": "k_weight",
+        "bias": "k_bias"
+      },
+      "attrs": {
+        "arguments": [],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 39, in forward\n    k=self.k(condition).reshape(b,s,self.heads,self.head_dim).transpose(1,2)\n  File \"D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py\", line 134, in forward\n    return F.linear(input, self.weight, self.bias)",
+        "projectionRoles": [
+          "K"
+        ]
+      },
+      "group": "k",
+      "source": "aten.linear.default"
+    },
+    {
+      "id": "reshape_1",
+      "name": "reshape_1",
+      "op": "reshape",
+      "inputs": [
+        "linear_1"
+      ],
+      "outputs": [
+        "reshape_1"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          [
+            1,
+            4,
+            2,
+            2
+          ]
+        ],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 39, in forward\n    k=self.k(condition).reshape(b,s,self.heads,self.head_dim).transpose(1,2)"
+      },
+      "group": "reshape_1",
+      "source": "aten.reshape.default"
+    },
+    {
+      "id": "transpose_1",
+      "name": "transpose_1",
+      "op": "transpose",
+      "inputs": [
+        "reshape_1"
+      ],
+      "outputs": [
+        "transpose_1"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          1,
+          2
+        ],
+        "dims": [
+          1,
+          2
+        ],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 39, in forward\n    k=self.k(condition).reshape(b,s,self.heads,self.head_dim).transpose(1,2)"
+      },
+      "group": "transpose_1",
+      "source": "aten.transpose.int"
+    },
+    {
+      "id": "linear_2",
+      "name": "V 投影 · v",
+      "op": "linear",
+      "inputs": [
+        "condition"
+      ],
+      "outputs": [
+        "linear_2"
+      ],
+      "parameters": {
+        "weight": "v_weight",
+        "bias": "v_bias"
+      },
+      "attrs": {
+        "arguments": [],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 40, in forward\n    v=self.v(condition).reshape(b,s,self.heads,self.head_dim).transpose(1,2)\n  File \"D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py\", line 134, in forward\n    return F.linear(input, self.weight, self.bias)",
+        "projectionRoles": [
+          "V"
+        ]
+      },
+      "group": "v",
+      "source": "aten.linear.default"
+    },
+    {
+      "id": "reshape_2",
+      "name": "reshape_2",
+      "op": "reshape",
+      "inputs": [
+        "linear_2"
+      ],
+      "outputs": [
+        "reshape_2"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          [
+            1,
+            4,
+            2,
+            2
+          ]
+        ],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 40, in forward\n    v=self.v(condition).reshape(b,s,self.heads,self.head_dim).transpose(1,2)"
+      },
+      "group": "reshape_2",
+      "source": "aten.reshape.default"
+    },
+    {
+      "id": "transpose_2",
+      "name": "transpose_2",
+      "op": "transpose",
+      "inputs": [
+        "reshape_2"
+      ],
+      "outputs": [
+        "transpose_2"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          1,
+          2
+        ],
+        "dims": [
+          1,
+          2
+        ],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 40, in forward\n    v=self.v(condition).reshape(b,s,self.heads,self.head_dim).transpose(1,2)"
+      },
+      "group": "transpose_2",
+      "source": "aten.transpose.int"
+    },
+    {
+      "id": "transpose_3",
+      "name": "transpose_3",
+      "op": "transpose",
+      "inputs": [
+        "transpose_1"
+      ],
+      "outputs": [
+        "transpose_3"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          -1,
+          -2
+        ],
+        "dims": [
+          -1,
+          -2
+        ],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 41, in forward\n    scores=q@k.transpose(-1,-2)*(self.head_dim**-.5)"
+      },
+      "group": "transpose_3",
+      "source": "aten.transpose.int"
+    },
+    {
+      "id": "matmul",
+      "name": "matmul",
+      "op": "matmul",
+      "inputs": [
+        "transpose",
+        "transpose_3"
+      ],
+      "outputs": [
+        "matmul"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 41, in forward\n    scores=q@k.transpose(-1,-2)*(self.head_dim**-.5)",
+        "attention": {
+          "kind": "attention",
+          "id": "softmax",
+          "path": "softmax",
+          "query": "transpose",
+          "keyTransposed": "transpose_3",
+          "value": "transpose_2",
+          "score": "matmul",
+          "probability": "softmax",
+          "context": "matmul_1",
+          "qk": "matmul",
+          "weighted": "matmul_1",
+          "evidence": "matmul → scale/mask → softmax → matmul with values"
+        },
+        "attentionRole": "score"
+      },
+      "group": "matmul",
+      "source": "aten.matmul.default"
+    },
+    {
+      "id": "mul",
+      "name": "mul",
+      "op": "multiply",
+      "inputs": [
+        "matmul",
+        "mul:scalar:1"
+      ],
+      "outputs": [
+        "mul"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          0.7071067811865476
+        ],
+        "scalarOperands": {
+          "1": 0.7071067811865476
+        },
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 41, in forward\n    scores=q@k.transpose(-1,-2)*(self.head_dim**-.5)"
+      },
+      "group": "mul",
+      "source": "aten.mul.Tensor"
+    },
+    {
+      "id": "add",
+      "name": "add",
+      "op": "add",
+      "inputs": [
+        "mul",
+        "mask"
+      ],
+      "outputs": [
+        "add"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 42, in forward\n    if mask is not None:scores=scores+mask"
+      },
+      "group": "add",
+      "source": "aten.add.Tensor"
+    },
+    {
+      "id": "softmax",
+      "name": "softmax",
+      "op": "softmax",
+      "inputs": [
+        "add"
+      ],
+      "outputs": [
+        "softmax"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          -1
+        ],
+        "dim": -1,
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 43, in forward\n    p=scores.softmax(-1)",
+        "attention": {
+          "kind": "attention",
+          "id": "softmax",
+          "path": "softmax",
+          "query": "transpose",
+          "keyTransposed": "transpose_3",
+          "value": "transpose_2",
+          "score": "matmul",
+          "probability": "softmax",
+          "context": "matmul_1",
+          "qk": "matmul",
+          "weighted": "matmul_1",
+          "evidence": "matmul → scale/mask → softmax → matmul with values"
+        },
+        "attentionRole": "probability"
+      },
+      "group": "softmax",
+      "source": "aten.softmax.int"
+    },
+    {
+      "id": "matmul_1",
+      "name": "matmul_1",
+      "op": "matmul",
+      "inputs": [
+        "softmax",
+        "transpose_2"
+      ],
+      "outputs": [
+        "matmul_1"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 44, in forward\n    return self.out((p@v).transpose(1,2).reshape(b,t,-1))",
+        "attention": {
+          "kind": "attention",
+          "id": "softmax",
+          "path": "softmax",
+          "query": "transpose",
+          "keyTransposed": "transpose_3",
+          "value": "transpose_2",
+          "score": "matmul",
+          "probability": "softmax",
+          "context": "matmul_1",
+          "qk": "matmul",
+          "weighted": "matmul_1",
+          "evidence": "matmul → scale/mask → softmax → matmul with values"
+        },
+        "attentionRole": "context"
+      },
+      "group": "matmul_1",
+      "source": "aten.matmul.default"
+    },
+    {
+      "id": "transpose_4",
+      "name": "transpose_4",
+      "op": "transpose",
+      "inputs": [
+        "matmul_1"
+      ],
+      "outputs": [
+        "transpose_4"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          1,
+          2
+        ],
+        "dims": [
+          1,
+          2
+        ],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 44, in forward\n    return self.out((p@v).transpose(1,2).reshape(b,t,-1))"
+      },
+      "group": "transpose_4",
+      "source": "aten.transpose.int"
+    },
+    {
+      "id": "reshape_3",
+      "name": "reshape_3",
+      "op": "reshape",
+      "inputs": [
+        "transpose_4"
+      ],
+      "outputs": [
+        "reshape_3"
+      ],
+      "parameters": {},
+      "attrs": {
+        "arguments": [
+          [
+            1,
+            3,
+            -1
+          ]
+        ],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 44, in forward\n    return self.out((p@v).transpose(1,2).reshape(b,t,-1))"
+      },
+      "group": "reshape_3",
+      "source": "aten.reshape.default"
+    },
+    {
+      "id": "linear_3",
+      "name": "out",
+      "op": "linear",
+      "inputs": [
+        "reshape_3"
+      ],
+      "outputs": [
+        "linear_3"
+      ],
+      "parameters": {
+        "weight": "out_weight",
+        "bias": "out_bias"
+      },
+      "attrs": {
+        "arguments": [],
+        "codeTrace": "File \"D:\\Personpage\\tmp\\silicondevine-v07\\python\\silicondevine\\conditional.py\", line 44, in forward\n    return self.out((p@v).transpose(1,2).reshape(b,t,-1))\n  File \"D:\\Anaconda3\\Lib\\site-packages\\torch\\nn\\modules\\linear.py\", line 134, in forward\n    return F.linear(input, self.weight, self.bias)"
+      },
+      "group": "out",
+      "source": "aten.linear.default"
+    }
+  ],
+  "inputs": [
+    "x",
+    "condition",
+    "mask"
+  ],
+  "outputs": [
+    "linear_3"
+  ],
+  "notes": [
+    "Eval-mode forward graph for the supplied inputs; no backward graph or unexecuted control-flow branches.",
+    "Stored values are contiguous windows. Statistics describe stored values, not the entire tensor.",
+    "Unknown operators preserve topology and captured tensors; internal math is not invented."
+  ],
+  "functionalUnits": [
+    {
+      "kind": "attention",
+      "id": "softmax",
+      "path": "softmax",
+      "query": "transpose",
+      "keyTransposed": "transpose_3",
+      "value": "transpose_2",
+      "score": "matmul",
+      "probability": "softmax",
+      "context": "matmul_1",
+      "qk": "matmul",
+      "weighted": "matmul_1",
+      "evidence": "matmul → scale/mask → softmax → matmul with values"
+    }
+  ]
+}

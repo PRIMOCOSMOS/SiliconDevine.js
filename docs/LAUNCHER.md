@@ -1,5 +1,8 @@
 # 本地启动器
 
+[使用说明](USER_GUIDE.md) · [文档目录](INDEX.md)
+
+
 双击 `SiliconDevine.exe`。选择示例或自己的 PyTorch 模型文件，确认 Python 环境，然后点击「进入模型空间」。也可以使用 Ctrl+Enter。原来的 `start-app.cmd` 会优先启动 EXE。
 
 EXE 内置启动器所需的 Python 和 Tk，启动界面不再依赖系统如何关联 `.py` 文件，也不会弹出命令行黑窗口。模型计算使用你选择的外部 Python / PyTorch 环境，继续支持不同 IDE 与虚拟环境。
@@ -26,7 +29,7 @@ python -m PyInstaller --noconfirm --distpath . --workpath .build-exe SiliconDevi
 
 需要诊断打包后的启动链路时，可执行 `SiliconDevine.exe --self-test report.json`。该模式在后台捕获 MLP、检查网页资源、验证浏览器交接、保存临时设置，并停止本次服务。可使用 `--preset "LLaMA · Transformers"` 检查原生 LLaMA，或 `--python` 指定解释器。正常双击不会运行此诊断。
 
-## 0.5 外观与 VAE
+## 外观与模型库
 
 启动器采用左右双区布局：左侧是原生分辨率的动态几何品牌画面，右侧配置代码与环境；小窗口自动收起品牌画面，保留配置与主要操作。Web 默认是全幅模型舞台，底部操作台集中控制播放、缩放、标牌、速度与进度。
 

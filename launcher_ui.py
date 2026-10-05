@@ -3,6 +3,7 @@ import ctypes
 import os
 import math
 import time
+import json
 import tkinter as tk
 from tkinter import ttk, font as tkfont
 
@@ -12,73 +13,118 @@ COLORS = dict(bg='#06080d', surface='#10151e', field='#161e2b', line='#293346',
 
 
 class KeynoteStage(tk.Canvas):
-    """Finite, resolution-independent brand geometry; never model or tensor data."""
+    """Shared studio-rendered optical sculpture, with bounded native light motion."""
     def __init__(self, parent, scale, ui, display, heading, root_path):
-        super().__init__(parent, bg=COLORS['bg'], highlightthickness=0, width=round(480*scale))
-        self.scale,self.ui,self.display=scale,ui,display
-        self.heading=heading
-        image_path=root_path/'assets'/f'orbit-{400 if scale<1.3 else 600 if scale<1.8 else 800}.png'
-        self.orbit_image=tk.PhotoImage(file=str(image_path)) if image_path.exists() else None
-        self.job=None
-        self.phase=0.
-        self.motion=True
+        super().__init__(parent,bg=COLORS['bg'],highlightthickness=0,width=round(480*scale))
+        self.scale,self.ui,self.display,self.heading=scale,ui,display,heading
+        density=400 if scale<1.3 else 600 if scale<1.8 else 800
+        path=root_path/'assets'/f'keynote-{density}.png'
+        self.art=tk.PhotoImage(file=str(path)) if path.exists() else None
+        motion_path=root_path/'assets/keynote-path.json'
+        self.path=json.loads(motion_path.read_text()) if motion_path.exists() else []
+        self.job=None;self.phase=0.;self.motion=True;self.visual_state='idle';self.lights=[]
+        self.rims=[];self.pulses=[];self.art_id=None;self.pointer=(0.,0.);self.offset=(0.,0.)
+        self.last_frame=time.monotonic();self.transition_started=self.last_frame
         if os.name=='nt':
             enabled=ctypes.c_int(1)
             try:ctypes.windll.user32.SystemParametersInfoW(0x1042,0,ctypes.byref(enabled),0)
             except (AttributeError,OSError):pass
             self.motion=bool(enabled.value)
+        self.motion_allowed=self.motion
         self.bind('<Configure>',lambda event:self.draw())
         self.bind('<Map>',lambda event:self.resume())
         self.bind('<Unmap>',lambda event:self.pause())
+        self.bind('<Motion>',self.track_pointer)
+        self.bind('<Leave>',lambda event:setattr(self,'pointer',(0.,0.)))
 
     def pause(self):
         if self.job is not None:self.after_cancel(self.job)
         self.job=None
+
+    def set_motion(self,enabled):
+        self.motion=bool(enabled and self.motion_allowed)
+        self.pause();self.offset=(0.,0.);self.move_lights();self.resume()
+
+    def track_pointer(self,event):
+        if not self.motion:return
+        self.pointer=(max(-1.,min(1.,(event.x-self.winfo_width()/2)/max(1,self.winfo_width()/2))),max(-1.,min(1.,(event.y-self.winfo_height()/2)/max(1,self.winfo_height()/2))))
+
+    def set_state(self,state):
+        if self.visual_state!=state:self.transition_started=time.monotonic()
+        self.visual_state=state
+        self.move_lights()
 
     def resume(self):
         if self.job is not None:return
         def frame():
             self.job=None
             if not self.winfo_ismapped():return
-            self.phase+=.012
-            self.draw()
-            if self.motion:self.job=self.after(65,frame)
+            now=time.monotonic();elapsed=min(.1,now-self.last_frame);self.last_frame=now
+            if self.motion:self.phase+=elapsed*(.8 if self.visual_state=='loading' else .28)
+            self.move_lights()
+            if self.motion:self.job=self.after(50 if self.visual_state=='loading' else 66,frame)
         frame()
 
     def draw(self):
-        self.delete('all')
+        self.delete('all');self.lights=[];self.rims=[];self.pulses=[]
         w,h=self.winfo_width(),self.winfo_height()
         if w<10 or h<10:return
-        s=self.scale
-        self.create_text(40*s,38*s,text='SiliconDevine',anchor='nw',fill='#ecf3ff',font=(self.display,26,'bold'))
-        self.create_text(40*s,103*s,text='看见\n计算的形状。',anchor='nw',fill='#e9f0fc',font=(self.heading,40))
-        self.create_text(42*s,h-80*s,text='从 PyTorch 代码，到可探索的三维模型。\n保存、连接，走进计算内部。',anchor='nw',fill='#aebfd8',font=(self.ui,10))
-        cx,cy=w*.5,max(h*.59,310*s)
-        r=min(w*.34,h*.23)
-        if self.orbit_image is not None:
-            self.create_image(cx,cy,image=self.orbit_image)
-            r=self.orbit_image.width()*.4
-        # Three orbital arcs share a crystal core; only the highlight moves.
-        for ring,(angle,flatten) in enumerate(((.12,.34),(.95,.46),(-.9,.46))):
-            points=[]
-            for i in range(97):
-                a=i*math.tau/96
-                x,y=r*math.cos(a),r*flatten*math.sin(a)
-                points.extend((cx+x*math.cos(angle)-y*math.sin(angle),cy+x*math.sin(angle)+y*math.cos(angle)))
-            if self.orbit_image is None:self.create_line(*points,fill=('#344e6e','#52729a','#849dbd')[ring],width=max(1,s))
-            start=self.phase+ring*2
-            arc=[]
-            for i in range(16):
-                a=start+i*.023
-                x,y=r*math.cos(a),r*flatten*math.sin(a)
-                arc.extend((cx+x*math.cos(angle)-y*math.sin(angle),cy+x*math.sin(angle)+y*math.cos(angle)))
-            # One small travelling light per orbit; the smooth body is pre-rendered.
-            x,y=arc[len(arc)//2:len(arc)//2+2]
-            self.create_oval(x-2*s,y-2*s,x+2*s,y+2*s,fill='#ecf6ff',outline='')
-        q=r*.28
-        for coords,fill in [((cx,cy-q,cx+q,cy-q*.4,cx,cy+q*.2,cx-q,cy-q*.4),'#293d55'),((cx-q,cy-q*.4,cx,cy+q*.2,cx,cy+q*1.2,cx-q,cy+q*.6),'#101e30'),((cx,cy+q*.2,cx+q,cy-q*.4,cx+q,cy+q*.6,cx,cy+q*1.2),'#1c3048')]:
-            if self.orbit_image is None:self.create_polygon(*coords,fill=fill,outline='#a4c2e6',width=max(1,s))
-        self.create_line(40*s,h-108*s,w-40*s,h-108*s,fill='#253348')
+        z=self.scale
+        self.cx,self.cy=w*.5,max(h*.59,310*z)
+        if self.art:self.art_id=self.create_image(self.cx,self.cy,image=self.art)
+        # Fixed vector pools; no images or canvas items are allocated per frame.
+        for _ in range(48):self.rims.append(self.create_line(0,0,0,0,fill='#172435',width=max(1,z),capstyle='round'))
+        for _ in range(3):self.pulses.append(self.create_line(0,0,0,0,fill='#59788c',width=max(1,z),smooth=True,state='hidden'))
+        self.create_text(40*z,38*z,text='SiliconDevine',anchor='nw',fill='#f0f6ff',font=(self.display,26))
+        self.create_text(40*z,108*z,text='看见\n计算的形状。',anchor='nw',fill='#f0f4fb',font=(self.heading,40))
+        self.create_text(42*z,h-80*z,text='从 PyTorch 代码，到可探索的三维模型。\n保存、连接，走进计算内部。',anchor='nw',fill='#b7c7db',font=(self.ui,10))
+        self.create_line(40*z,h-108*z,w-40*z,h-108*z,fill='#34455a')
+        for _ in range(28):
+            self.lights.append((self.create_line(0,0,0,0,fill='#192c3e',width=4*z,capstyle='round'),self.create_line(0,0,0,0,fill='#d8efff',width=1.25*z,capstyle='round')))
+        self.move_lights()
+
+    def move_lights(self):
+        if not self.art or not self.path or not self.lights:return
+        size=self.art.width();z=self.scale
+        px,py=self.pointer if self.motion else (0.,0.)
+        self.offset=tuple(a+(b-a)*.12 for a,b in zip(self.offset,(px*4*z,py*3*z)))
+        dx,dy=self.offset
+        self.coords(self.art_id,self.cx+dx,self.cy+dy)
+        def blend(rgb,strength):
+            return '#%02x%02x%02x'%tuple(round(b+(v-b)*max(0,min(1,strength))) for b,v in zip((6,8,13),rgb))
+        tint=(255,174,147) if self.visual_state=='error' else (161,230,213) if self.visual_state=='ready' else (181,215,249)
+        def orbit(angle,radius=1.):
+            # A tilted aperture around the optical sculpture, constrained below the heading.
+            x=math.cos(angle)*size*.44*radius;y=math.sin(angle)*size*.31*radius
+            return (self.cx+dx+x*.88-y*.47,self.cy+dy+x*.47+y*.88)
+        for i,item in enumerate(self.rims):
+            a=math.tau*i/48
+            intensity=.10+(.21*max(0,math.cos(a-self.phase-px*.6))**7 if self.motion else 0)
+            self.coords(item,*orbit(a),*orbit(a+math.tau/48))
+            self.itemconfigure(item,fill=blend(tint,intensity))
+        def surface(angle):
+            cursor=(angle%math.tau)/math.tau*len(self.path);k=int(cursor);mix=cursor-k
+            a,b=self.path[k],self.path[(k+1)%len(self.path)]
+            return (self.cx+dx+(a[0]*(1-mix)+b[0]*mix)*size/2,self.cy+dy-(a[1]*(1-mix)+b[1]*mix)*size/2)
+        for i,(glow,core) in enumerate(self.lights):
+            angle=(self.phase-i*.009+px*.08)%math.tau
+            visible=self.motion and .36<angle<6.04
+            for item in (glow,core):self.itemconfigure(item,state='normal' if visible else 'hidden')
+            if not visible:continue
+            strength=(1-i/28)**1.6
+            points=(*surface(angle),*surface(angle+.018))
+            self.coords(glow,*points);self.coords(core,*points)
+            self.itemconfigure(glow,fill=blend(tint,strength*.18))
+            self.itemconfigure(core,fill=blend((229,246,255) if self.visual_state!='error' else tint,strength*.88))
+        age=time.monotonic()-self.transition_started
+        for i,item in enumerate(self.pulses):
+            t=(age-i*.14)/1.05
+            visible=self.motion and self.visual_state in ('idle','ready') and 0<t<1
+            self.itemconfigure(item,state='normal' if visible else 'hidden')
+            if visible:
+                expansion=1+.18*(1-(1-t)**3)
+                self.coords(item,*[v for j in range(65) for v in orbit(j*math.tau/64,expansion)])
+                self.itemconfigure(item,fill=blend(tint,.32*math.sin(t*math.pi)*(1-t)))
 
 
 class LoadingLine(tk.Canvas):
@@ -87,23 +133,37 @@ class LoadingLine(tk.Canvas):
         super().__init__(parent, height=max(2,round(2*scale)), bg=COLORS['line'], highlightthickness=0)
         self.job=None
         self.phase=0
+        self.active=False;self.motion=True
         self.stroke=self.create_rectangle(0,0,0,0,fill=COLORS['accent'],outline='',state='hidden')
+        self.bind('<Unmap>',lambda event:self.pause())
+        self.bind('<Map>',lambda event:self.start() if self.active else None)
+        self.bind('<Configure>',lambda event:self.start() if self.active and not self.motion else None)
+
+    def pause(self):
+        if self.job is not None:self.after_cancel(self.job)
+        self.job=None
+
+    def set_motion(self,enabled):
+        self.motion=bool(enabled);self.pause()
+        if self.active:self.start()
 
     def start(self, interval=18):
-        if self.job is not None:return
+        self.active=True
+        if self.job is not None or not self.winfo_ismapped():return
         def frame():
+            self.job=None
+            if not self.active or not self.winfo_ismapped():return
             width=self.winfo_width()
             band=max(30,width*.18)
-            self.phase=(self.phase+.008)%1
-            x=(width+band)*self.phase-band
+            if self.motion:self.phase=(self.phase+.008)%1
+            x=(width+band)*self.phase-band if self.motion else 0
             self.itemconfigure(self.stroke,state='normal')
-            self.coords(self.stroke,x,0,x+band,self.winfo_height())
-            self.job=self.after(30,frame)
+            self.coords(self.stroke,x,0,x+band if self.motion else width,self.winfo_height())
+            if self.motion:self.job=self.after(30,frame)
         frame()
 
     def stop(self):
-        if self.job is not None:self.after_cancel(self.job)
-        self.job=None
+        self.active=False;self.pause()
         self.itemconfigure(self.stroke,state='hidden')
 
 
@@ -191,6 +251,9 @@ def build_ui(app):
     style.configure('TSeparator',background=c['line'])
     style.configure('Vertical.TScrollbar', background=c['line'], troughcolor=c['bg'],
                     borderwidth=0, arrowsize=px(10))
+    style.layout('Vertical.TScrollbar', [('Vertical.Scrollbar.trough', {'sticky':'ns', 'children':[
+        ('Vertical.Scrollbar.thumb', {'expand':'1', 'sticky':'nswe'})]})])
+    style.map('Vertical.TScrollbar', background=[('active', c['muted']), ('pressed', c['accent'])])
 
     shell=ttk.Frame(w)
     shell.pack(fill='both',expand=True)
@@ -218,6 +281,14 @@ def build_ui(app):
     ttk.Label(header, text='打开你的模型', font=(heading,31)).grid(row=0,column=0,sticky='w')
     ttk.Label(header, text='选择代码，进入三维计算空间。', style='Muted.TLabel').grid(row=1,column=0,sticky='w',pady=(px(12),0))
     ttk.Button(header, text='使用说明', style='Quiet.TButton', command=lambda: os.startfile(str(app.root_path / 'docs/QUICKSTART.html'))).grid(row=0,column=1,sticky='e')
+
+    def toggle_motion():
+        app.keynote_stage.set_motion(not app.keynote_stage.motion)
+        app.progress.set_motion(app.keynote_stage.motion)
+        app.motion_button.configure(text='动态光影 · 开' if app.keynote_stage.motion else '动态光影 · 关')
+    app.motion_button=ttk.Button(header,text='动态光影 · 开' if app.keynote_stage.motion else '动态光影 · 关',style='Quiet.TButton',command=toggle_motion)
+    app.motion_button.grid(row=1,column=1,sticky='e',pady=(px(10),0))
+    if not app.keynote_stage.motion_allowed:app.motion_button.configure(state='disabled')
 
     # Scroll only the configuration area; status and primary action stay accessible.
     viewport = ttk.Frame(outer)
@@ -259,13 +330,23 @@ def build_ui(app):
     title.grid(row=0,column=0,sticky='ew',pady=(0,px(18)))
     title.columnconfigure(0,weight=1)
     ttk.Label(title,text='从示例开始',font=(ui,11,'bold')).grid(row=0,column=0,sticky='w')
-    preset=ttk.Combobox(title,values=('选择示例','MLP','TinyGPT','LLaMA · Transformers','SAB · 作者实现','ISAB · 作者实现','VAE · PyTorch 官方','卷积 VAE','条件 VAE'),state='readonly',width=24)
+    preset=ttk.Combobox(title,values=('选择示例','MLP','TinyGPT','LLaMA · Transformers','SAB · 作者实现','ISAB · 作者实现','VAE · PyTorch 官方','卷积 VAE','条件 VAE','DeepSeek-V3','GLM-4.5','MiniMax-M1','动态卷积核','条件注意力'),state='readonly',width=24)
     preset.current(0)
     preset.grid(row=0,column=1,sticky='e',padx=(px(15),0))
     app.preset=preset
     def select_preset(event=None):
         choice=preset.get().split(' · ')[0]
         if choice=='选择示例':return
+        if choice in ('DeepSeek-V3','GLM-4.5','MiniMax-M1'):
+            app.file.set(str(app.root_path/'examples/large_models.py'))
+            app.factory.set({'DeepSeek-V3':'build_deepseek','GLM-4.5':'build_glm','MiniMax-M1':'build_minimax'}[choice])
+            app.backend.set('fx')
+            return
+        if choice in ('动态卷积核','条件注意力'):
+            app.file.set(str(app.root_path/'examples/conditional_operators.py'))
+            app.factory.set('build_dynamic' if choice=='动态卷积核' else 'build_conditional')
+            app.backend.set('fx' if choice=='动态卷积核' else 'export')
+            return
         if choice in ('VAE','卷积 VAE','条件 VAE'):
             app.file.set(str(app.root_path/'examples/vae_models.py'))
             app.factory.set({'VAE':'build_official_vae','卷积 VAE':'build_conv_vae','条件 VAE':'build_conditional_vae'}[choice])
@@ -300,12 +381,12 @@ def build_ui(app):
     advanced=ttk.Frame(content,padding=(0,px(14),0,px(8)))
     advanced.columnconfigure(1,weight=1)
     ttk.Label(advanced,text='捕获接口').grid(row=0,column=0,sticky='w',padx=(0,px(24)))
-    backend=ttk.Combobox(advanced,textvariable=app.backend,values=('fx','export'),state='readonly',width=10)
+    backend=ttk.Combobox(advanced,textvariable=app.backend,values=('fx','export','execution'),state='readonly',width=10)
     backend.grid(row=1,column=0,sticky='w',padx=(0,px(24)),pady=(px(7),px(10)))
     ttk.Label(advanced,text='模型工厂函数').grid(row=0,column=1,sticky='w')
     factory=ttk.Entry(advanced,textvariable=app.factory)
     factory.grid(row=1,column=1,sticky='ew',pady=(px(7),px(10)))
-    ttk.Label(advanced,text='普通模块使用 fx；原生 Transformer 建议使用 export。',style='Muted.TLabel').grid(row=2,column=0,columnspan=2,sticky='w')
+    ttk.Label(advanced,text='fx：模块图；export：静态计算图；execution：实际执行路径。',style='Muted.TLabel').grid(row=2,column=0,columnspan=2,sticky='w')
     app.config_widgets.extend([(backend,'readonly'),(factory,'normal')])
     def toggle_advanced():
         visible=bool(advanced.winfo_manager())
@@ -331,6 +412,7 @@ def build_ui(app):
     status.grid(row=1,column=1,sticky='ew',pady=(px(6),0))
     state_frame.bind('<Configure>',lambda e: status.configure(wraplength=max(px(250),e.width-px(70))))
     app.progress=LoadingLine(footer,scale)
+    app.progress.set_motion(app.keynote_stage.motion)
     app.progress.grid(row=1,column=0,sticky='ew',ipady=0)
     actions=ttk.Frame(footer)
     actions.grid(row=2,column=0,sticky='ew',pady=(px(18),px(12)))
@@ -364,6 +446,7 @@ def build_ui(app):
     def set_state(state):
         if app.visual_state==state:return
         app.visual_state=state
+        app.keynote_stage.set_state(state)
         title,color={'idle':('准备就绪',c['muted']),'loading':('正在捕获模型',c['accent']),
                      'ready':('工作台已连接',c['accent']),'error':('需要处理',c['error']),
                      'stopped':('服务已停止',c['muted'])}[state]
@@ -385,7 +468,6 @@ def build_ui(app):
             try:ctypes.windll.user32.SystemParametersInfoW(0x1042,0,ctypes.byref(enabled),0)
             except (AttributeError,OSError):pass
         if not enabled.value:return
-        import time
         started=time.monotonic()
         def frame():
             t=min(1,(time.monotonic()-started)/.36)
