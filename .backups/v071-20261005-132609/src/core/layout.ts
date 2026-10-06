@@ -1,5 +1,4 @@
 import { coordinates, flatIndex, numel, topologicalNodes, type Model, type Tensor } from './model.js';
-import {modelAssemblies} from './assemblies.js';
 export type Vec3 = [
     number,
     number,
@@ -93,9 +92,7 @@ export function tensorWindow(t: Tensor, limit = 128, requestedOrigin: number[] =
 export function layoutModel(model: Model, cellLimit = 128, origins = new Map<string, number[]>()): Map<string, TensorPlane> {
     const planes = new Map(model.tensors.map(t => [t.id, tensorWindow(t, cellLimit, origins.get(t.id))])), levels = new Map<string, number>();
     const ordered=topologicalNodes(model), attention=ordered.some(n=>n.attrs?.attentionRole), lanes=new Map<string,number>();
-    // A scoped graph also lists buffers/constants as boundary inputs. They belong
-    // to the consuming operator, not to the data-input plane at the top.
-    model.inputs.filter(id=>['input','activation'].includes(planes.get(id)?.tensor.role??'')).forEach(id => levels.set(id, 0));
+    model.inputs.forEach(id => levels.set(id, 0));
     for (const n of ordered) {
         const level = 1 + Math.max(0, ...[...n.inputs,...Object.values(n.parameters??{})].map(id => levels.get(id) ?? 0));
         const path=n.group??n.name, roles=(n.attrs?.projectionRoles as string[]??[]).join('');
@@ -106,17 +103,6 @@ export function layoutModel(model: Model, cellLimit = 128, origins = new Map<str
             levels.set(o, level);
             planes.get(o)!.owner = n.id;
             lanes.set(o,lane);
-        }
-    }
-    // Keep the atomic steps of a proven functional unit contiguous. Independent
-    // mask preparation must join score normalization, not stretch its frame over
-    // every intervening Q/K/V projection. Tensor IDs and dependency edges stay intact.
-    for(const unit of modelAssemblies(model,ordered)){
-        const floor=1+Math.max(0,...unit.inputs.map(id=>levels.get(id)??0));
-        const children=new Set(unit.nodes);
-        for(const n of ordered.filter(n=>children.has(n.id))){
-            const level=1+Math.max(floor-1,...[...n.inputs,...Object.values(n.parameters??{})].map(id=>levels.get(id)??0));
-            n.outputs.forEach(id=>levels.set(id,level));
         }
     }
     const rows = new Map<number, TensorPlane[]>();
@@ -130,7 +116,7 @@ export function layoutModel(model: Model, cellLimit = 128, origins = new Map<str
         const owner = model.nodes.find(n => n.id === p.owner);
         return Math.max(p.width, 3.6, ...Object.values(owner?.parameters ?? {}).map(id => planes.get(id)?.width ?? 0));
     };
-    const laneWidth=Math.max(4.8,...[...planes.values()].filter(p=>p.tensor.role==='activation'||p.tensor.role==='input').map(p=>footprint(p)+1.2));
+    const laneWidth=Math.max(4.8,...[...planes.values()].filter(p=>p.tensor.role!=='parameter').map(p=>p.width+1.2));
     for (const [level, row] of [...rows].sort((a, b) => a[0] - b[0])) {
         const width = row.reduce((s, p) => s + footprint(p) + 1.2, 0) - 1.2;
         let x = -width / 2;
@@ -146,21 +132,7 @@ export function layoutModel(model: Model, cellLimit = 128, origins = new Map<str
             for(const [lane,peers] of byLane){let z=-peers.reduce((s,p)=>s+p.depth+.7,0)/2;
                 for(const p of peers){p.center=[lane*laneWidth,y,z+p.depth/2];z+=p.depth+.7;}}
         }
-        const nextLevel=Math.min(...[...rows.keys()].filter(l=>l>level));
-        // Reserve the parameter bank's projected depth between consecutive data
-        // layers. At the default oblique pitch, a front bias must not project on
-        // top of the output and a statistics bank must not cover the input.
-        const bankGap=(rows.get(nextLevel)??[]).map(out=>{
-            const n=ordered.find(n=>n.id===out.owner),input=n?planes.get(n.inputs[0]):undefined;
-            let back=Math.max(out.depth,input?.depth??0)/2+.85,front=back,height=.28;
-            for(const [key,id] of Object.entries(n?.parameters??{})){
-                const p=planes.get(id);if(!p||levels.has(id))continue;
-                height=Math.max(height,p.height);
-                if(key.includes('bias')||key.includes('beta'))front+=p.depth+1.5;else back+=p.depth+1.5;
-            }
-            return Object.keys(n?.parameters??{}).length?2*(Math.max(front,back)*.45+height+.55):0;
-        });
-        y -= Math.max(model.architecture?6.2:attention?2.15:4.1, ...bankGap, ...row.map(p => p.height + (attention?1.8:3.4)));
+        y -= Math.max(model.architecture?6.2:attention?2.15:4.1, ...row.map(p => p.height + (attention?1.8:3.4)));
     }
     // A scalar/elementwise operation is one work surface. Its operands are arranged
     // around the output on that plane; convolution and learned projections retain depth.
@@ -175,8 +147,7 @@ export function layoutModel(model: Model, cellLimit = 128, origins = new Map<str
     const placed = new Set<string>();
     for (const n of topologicalNodes(model)) {
         const output = planes.get(n.outputs[0])!, input = planes.get(n.inputs[0]);
-        const margin=Math.max(output.depth,input?.depth??0)/2+.85;
-        let back=margin,front=margin;
+        let slot = 0;
         for (const [key, id] of Object.entries(n.parameters ?? {})) {
             if (placed.has(id) || levels.has(id))
                 continue;
@@ -184,10 +155,10 @@ export function layoutModel(model: Model, cellLimit = 128, origins = new Map<str
             const p = planes.get(id)!;
             // Bias stays beside its weight fabric, aligned with the trunk on X.
             const bias = key.includes('bias') || key.includes('beta');
-            p.center = [output.center[0], input ? (input.center[1] + output.center[1]) / 2 : output.center[1] + 2, bias?front+p.depth/2:-back-p.depth/2];
-            if(bias)front+=p.depth+1.5;else back+=p.depth+1.5;
+            p.center = [output.center[0], input ? (input.center[1] + output.center[1]) / 2 : output.center[1] + 2, (bias ? 1 : -1) * (Math.max(output.depth, input?.depth ?? 0) / 2 + p.depth / 2 + .7 + slot * .45)];
             p.level = output.level;
             p.owner = n.id;
+            slot++;
         }
     }
     // Constants and buffers used as explicit graph inputs retain an aligned lane.
@@ -203,23 +174,6 @@ export function layoutModel(model: Model, cellLimit = 128, origins = new Map<str
                 p.owner = use.id;
             }
         }
-    // Reserve actual 3D footprints, including parameters, buffers and operand
-    // work surfaces. Resolve within the same horizontal level to keep the trunk.
-    // Widen Z only when footprints really intersect; never displace the main data.
-    const packed:TensorPlane[]=[];
-    const order=[...planes.values()].sort((a,b)=>Number(['parameter','buffer','constant'].includes(a.tensor.role))-Number(['parameter','buffer','constant'].includes(b.tensor.role)));
-    for(const p of order){
-        const conflicts=(q:TensorPlane)=>Math.abs(p.center[0]-q.center[0])<(p.width+q.width)/2+.4&&
-            p.center[1]-.2<q.center[1]+q.height+.2&&p.center[1]+p.height+.2>q.center[1]-.2&&
-            Math.abs(p.center[2]-q.center[2])<(p.depth+q.depth)/2+.65;
-        const direction=p.center[2]<0?-1:1;
-        let hits=packed.filter(conflicts);
-        while(hits.length){
-            p.center[2]=direction<0?Math.min(...hits.map(q=>q.center[2]-q.depth/2))-p.depth/2-.66:Math.max(...hits.map(q=>q.center[2]+q.depth/2))+p.depth/2+.66;
-            hits=packed.filter(conflicts);
-        }
-        packed.push(p);
-    }
     for (const p of planes.values())
         p.positions = p.positions.map(v => [v[0] + p.center[0], v[1] + p.center[1], v[2] + p.center[2]]);
     return planes;

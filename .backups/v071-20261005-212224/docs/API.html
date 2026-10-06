@@ -42,10 +42,6 @@ interface Operation {
 <td>定位到模块输入、输出与参数；跨图段会自动切换</td>
 </tr>
 <tr>
-<td><code>getAssembly(nodeId)</code></td>
-<td>返回该节点的可视化功能分组：标题、成员节点、所属张量、共享输入与全部关联张量</td>
-</tr>
-<tr>
 <td><code>clearFocus()</code> / <code>fit()</code></td>
 <td>返回当前图段总览 / 重新适配镜头</td>
 </tr>
@@ -95,8 +91,7 @@ interface Operation {
 </tr>
 </tbody>
 </table></div>
-<p>自动演示按算子轮转；未选中时悬停接管计算，选中后锁定功能分组，在组内悬停可以切换局部计算。「总览」解除锁定。依赖层之间的区域在 Y 轴相接，同层并行算子用相邻 X 区域分隔。小型 MLP 保留所有可见坐标之间的权重线；复杂图只生成当前算子的数学连线。</p>
-<p><code>modelAssemblies(model, nodes?)</code> 可在渲染前检查功能分组。<code>owned</code> 包含输出、参数、缓冲量及常量，<code>inputs</code> 为来自组外的数据，<code>related</code> 是全部关联张量 ID。共享参数可被多个组引用。分组依据捕获的依赖和已有语义识别规则，保留原始算子、张量 ID 和数值；未知结构按基础算子分组。</p>
+<p>自动演示按算子轮转；悬停优先于固定选择，固定选择优先于自动演示。依赖层之间的区域在 Y 轴相接，同层并行算子用相邻 X 区域分隔。小型 MLP 保留所有可见坐标之间的权重线；复杂图只生成当前算子的连线。</p>
 <h2 id="_2">数学插件</h2>
 <pre><code class="language-ts">import {registerOperator} from 'silicondevine.js';
 

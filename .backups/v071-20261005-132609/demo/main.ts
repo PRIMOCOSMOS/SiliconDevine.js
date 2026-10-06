@@ -176,24 +176,11 @@ el('play').textContent = viewer.isPlaying ? '暂停' : '播放';
 el('fit').onclick = () => viewer.clearFocus();
 el('zoom-in').onclick = () => viewer.zoom(.8);
 el('zoom-out').onclick = () => viewer.zoom(1.25);
-const panToggle=document.createElement('button');panToggle.id='pan-mode';panToggle.textContent='平移';panToggle.setAttribute('aria-pressed','false');panToggle.title='切换左键／单指平移；右键或 Shift 拖动始终可平移';
-el('fullscreen').before(panToggle);
-panToggle.onclick=()=>{const pan=panToggle.getAttribute('aria-pressed')!=='true';panToggle.setAttribute('aria-pressed',String(pan));viewer.setNavigationMode(pan?'pan':'rotate');};
-const viewChoice=document.createElement('select');viewChoice.id='camera-view';viewChoice.setAttribute('aria-label','相机朝向');
-viewChoice.add(new Option('视角',''));viewChoice.add(new Option('正视','front'));viewChoice.add(new Option('立体','oblique'));el('fullscreen').before(viewChoice);
-viewChoice.onchange=()=>{if(viewChoice.value)viewer.setView(viewChoice.value as 'front'|'oblique');viewChoice.value='';};
-stage.title='左键旋转 · 右键 / Shift 拖动平移 · 滚轮缩放 · 方向键平移 · Shift + 方向键旋转 · Home 总览';
 el('fullscreen').onclick = () => void viewer.fullscreen().catch(error);
 el<HTMLSelectElement>('labels').onchange = e => viewer.setLabels((e.target as HTMLSelectElement).value as 'auto' | 'all' | 'none');
 el('prev').onclick = () => viewer.setPage(Math.max(0, pageStart - 32));
 el('next').onclick = () => viewer.setPage(pageStart + 32);
 stage.addEventListener('keydown', e => {
-    if((e.target as HTMLElement).matches('input,select,textarea,button'))return;
-    if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
-        e.preventDefault();const x=e.key==='ArrowLeft'?-1:e.key==='ArrowRight'?1:0,y=e.key==='ArrowUp'?1:e.key==='ArrowDown'?-1:0;
-        if(e.shiftKey)viewer.orbit(x*.12,-y*.12);else viewer.pan(x*.06,y*.06);
-    }
-    if(['+','=','-','Home'].includes(e.key))e.preventDefault();
     if (e.key === '+' || e.key === '=')
         viewer.zoom(.8);
     if (e.key === '-')
@@ -278,7 +265,6 @@ function syncNavigation() {
     el('scope-label').textContent = (nav.scopeName ?? nav.function ?? nav.scope) || '完整模型';
     el<HTMLButtonElement>('parent-module').disabled = !nav.scope && !nav.function && !nav.mechanism;
     el<HTMLSelectElement>('representation').value = nav.representation;
-    el<HTMLSelectElement>('representation').disabled=!!model?.architecture&&!viewer.isSourceExecution&&!viewer.isMechanism;
     el<HTMLSelectElement>('modules').value = nav.scope;
     el('outline').replaceChildren();
     for (const n of nav.nodes) {

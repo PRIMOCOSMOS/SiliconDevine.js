@@ -11,8 +11,6 @@ export { numericPalette } from './render/numericPaletteTokens.js';
 export { LiveConnection } from './core/liveClient.js';
 export type { LiveStatus } from './core/liveClient.js';
 export { moduleView } from './core/hierarchy.js';
-export { modelAssemblies } from './core/assemblies.js';
-export type { Assembly } from './core/assemblies.js';
 export { aggregatePartition } from './core/layout.js';
 export { defineArchitecture } from './core/architecture.js';
 export type { ArchitectureScopes } from './core/architecture.js';

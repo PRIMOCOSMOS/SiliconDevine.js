@@ -1,5 +1,4 @@
 import { coordinates, flatIndex, numel, topologicalNodes, type Model, type Tensor } from './model.js';
-import {modelAssemblies} from './assemblies.js';
 export type Vec3 = [
     number,
     number,
@@ -106,17 +105,6 @@ export function layoutModel(model: Model, cellLimit = 128, origins = new Map<str
             levels.set(o, level);
             planes.get(o)!.owner = n.id;
             lanes.set(o,lane);
-        }
-    }
-    // Keep the atomic steps of a proven functional unit contiguous. Independent
-    // mask preparation must join score normalization, not stretch its frame over
-    // every intervening Q/K/V projection. Tensor IDs and dependency edges stay intact.
-    for(const unit of modelAssemblies(model,ordered)){
-        const floor=1+Math.max(0,...unit.inputs.map(id=>levels.get(id)??0));
-        const children=new Set(unit.nodes);
-        for(const n of ordered.filter(n=>children.has(n.id))){
-            const level=1+Math.max(floor-1,...[...n.inputs,...Object.values(n.parameters??{})].map(id=>levels.get(id)??0));
-            n.outputs.forEach(id=>levels.set(id,level));
         }
     }
     const rows = new Map<number, TensorPlane[]>();

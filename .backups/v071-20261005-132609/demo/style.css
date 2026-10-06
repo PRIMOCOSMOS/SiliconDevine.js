@@ -35,5 +35,3 @@ body[data-presentation=true] .workspace{grid-template-rows:minmax(96px,auto) min
  #structure-badge{font-size:10px;margin-top:5px}.navigation #computation-stage{max-width:100%}
  body[data-presentation=true] .workspace{grid-template-rows:auto minmax(350px,1fr) 130px}
 }
-/* Camera controls retain clear state alongside the computation controls. */
-.controls #pan-mode[aria-pressed=true]{background:#cedfea;color:#102333}.controls #camera-view{max-width:85px}.controls{flex-wrap:wrap}

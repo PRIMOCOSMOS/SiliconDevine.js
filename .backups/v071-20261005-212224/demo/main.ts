@@ -278,7 +278,6 @@ function syncNavigation() {
     el('scope-label').textContent = (nav.scopeName ?? nav.function ?? nav.scope) || '完整模型';
     el<HTMLButtonElement>('parent-module').disabled = !nav.scope && !nav.function && !nav.mechanism;
     el<HTMLSelectElement>('representation').value = nav.representation;
-    el<HTMLSelectElement>('representation').disabled=!!model?.architecture&&!viewer.isSourceExecution&&!viewer.isMechanism;
     el<HTMLSelectElement>('modules').value = nav.scope;
     el('outline').replaceChildren();
     for (const n of nav.nodes) {

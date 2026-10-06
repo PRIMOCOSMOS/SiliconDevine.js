@@ -1,6 +1,4 @@
 import { FunctionPlot } from './functionPlot.js';
-import {modelAssemblies,type Assembly} from '../core/assemblies.js';
-import {AssemblyBoundaries} from './assemblyBoundaries.js';
 import { structureSummary } from '../core/structureSummary.js';
 import { StructureMotion, structureColors } from './structureMotion.js';
 import { GaussianMotion } from './gaussianMotion.js';
@@ -88,13 +86,6 @@ export class SiliconDevineViewer {
     private nodes: Operation[] = [];
     private cards: Card[] = [];
     private planeOutlines=new Map<string,T.LineSegments>();
-    private planePlates=new Map<string,T.Mesh>();
-    private assemblies:Assembly[]=[];
-    private assemblyBoundaries?:AssemblyBoundaries;
-    private assemblyByNode=new Map<string,Assembly>();
-    private emphasizedAssembly='';
-    private crystalBatches:{body:T.InstancedMesh;edge:T.InstancedMesh;ids:string[];colors:Float32Array}[]=[];
-    private backbone?:Fabric;
     private fabrics = new Map<string, Fabric>();
     private edges = new Map<string, Connection[]>();
     private pageStart = 0;
@@ -422,13 +413,10 @@ export class SiliconDevineViewer {
         }
         this.selected = id;
         this.options.onSelect?.(node);
-        const unit=this.assemblyByNode.get(id),bounds=unit?this.assemblyBoundaries?.bounds.get(unit.id):undefined;
-        const ids = unit&&bounds?[...unit.owned,...unit.inputs.filter(id=>{const p=this.planes.get(id);return p&&p.center[1]<=bounds.max.y+Math.max(6,bounds.max.y-bounds.min.y);})]:[...node.inputs,...node.outputs,...Object.values(node.parameters??{})];
+        const ids = [...node.inputs, ...node.outputs, ...Object.values(node.parameters ?? {})];
         this.fit(ids);
     }
     clearFocus() { this.selected = undefined; this.options.onSelect?.(undefined); this.fit(); }
-    /** Inspect a visual functional unit without changing or contracting its graph. */
-    getAssembly(nodeId:string){const a=this.assemblyByNode.get(nodeId);return a?{...a,nodes:[...a.nodes],owned:[...a.owned],inputs:[...a.inputs],related:[...a.related]}:undefined;}
     zoom(factor: number) { this.stopFlight(); const delta = this.camera.position.clone().sub(this.controls.target).multiplyScalar(factor); delta.clampLength(this.controls.minDistance, this.controls.maxDistance); this.camera.position.copy(this.controls.target).add(delta); this.controls.update(); }
     setNavigationMode(mode:'rotate'|'pan'){
         this.navigationMode=mode;
@@ -472,7 +460,8 @@ export class SiliconDevineViewer {
         this.root.updateMatrixWorld(true);
         // Include the focused caption once; orbiting never triggers a camera refit.
         if(ids&&this.selected){
-            for(const card of this.cards.filter(c=>ids.includes(c.id))){
+            const card=this.cards.filter(c=>c.owner===this.selected).sort((a,b)=>b.priority-a.priority)[0];
+            if(card){
                 const mesh=card.group.children[0] as T.Mesh;mesh.geometry.computeBoundingSphere();
                 const radius=mesh.geometry.boundingSphere!.radius;
                 box.expandByPoint(card.anchor.clone().addScalar(radius));
@@ -515,7 +504,6 @@ export class SiliconDevineViewer {
         this.root.clear();
         this.cards = [];
         this.planeOutlines.clear();
-        this.planePlates.clear();this.assemblyBoundaries=undefined;this.assemblyByNode.clear();this.assemblies=[];this.emphasizedAssembly='';this.crystalBatches=[];this.backbone=undefined;
         this.arrows = [];
         this.activationCurves.clear();
         this.regions = [];
@@ -538,24 +526,19 @@ export class SiliconDevineViewer {
         this.tensors = new Map(this.getDisplayedModel()!.tensors.map(t => [t.id, t]));
         const budget = Math.max(512, Math.min(16384, this.options.maxCells ?? 8192)), per = Math.max(1, Math.min(this.options.cellsPerTensor ?? 128, Math.floor(budget / Math.max(1, model.tensors.length))));
         this.planes = layoutModel(model, per, this.origins);
-        this.assemblies=modelAssemblies(model,this.nodes);
-        this.assemblies.forEach(a=>a.nodes.forEach(id=>this.assemblyByNode.set(id,a)));
         const pos: Position3[] = [], values: number[] = [], weightPos:Position3[]=[], weightValues:number[]=[], structuralColors:string[]=[], weightColors:string[]=[];
-        const dataIds:string[]=[],weightIds:string[]=[];
         for (const p of this.planes.values()) {
             this.positions.set(p.tensor.id, new Map(p.indices.map((v, i) => [v, p.positions[i]])));
             const extent = Math.max(p.tensor.stats?.absmax ?? 0, valueExtent([...(p.tensor.data?.values ?? []), ...Object.values(p.tensor.samples ?? {})].map(v => v ?? NaN)));
             this.extents.set(p.tensor.id, Math.max(extent, 1e-12));
             const weight=p.tensor.role==='parameter';
             (weight?weightPos:pos).push(...p.positions);
-            (weight?weightIds:dataIds).push(...p.positions.map(()=>p.tensor.id));
             (weight?weightValues:values).push(...p.indices.map(i => valueAt(p.tensor, i) / Math.max(extent, 1e-12)));
             const owner=this.nodes.find(n=>n.id===p.owner), color=weight?'#d0b790':p.tensor.role==='buffer'?'#a3b7a5':structureColors[String(owner?.attrs?.kind)]??'#91bbca';
             (weight?weightColors:structuralColors).push(...p.positions.map(()=>color));
             const plate = new T.Mesh(new T.BoxGeometry(Math.max(p.width, .8), .018, Math.max(p.depth, .5)), new T.MeshBasicMaterial({ color: '#3c7187', transparent: true, opacity: .1, depthWrite: false }));
             plate.position.set(p.center[0], p.center[1] - .16, p.center[2]);
             this.root.add(plate);
-            this.planePlates.set(p.tensor.id,plate);
             const outline = new T.LineSegments(new T.EdgesGeometry(plate.geometry), new T.LineBasicMaterial({ color: p.tensor.role === 'parameter' ? '#bc986c' : '#65b4c7', transparent: true, opacity: .48 }));
             outline.position.copy(plate.position);
             this.root.add(outline);
@@ -578,9 +561,8 @@ export class SiliconDevineViewer {
             const crystal = createCrystalTensor(this.root, pos.length, model.architecture?.mode==='structure'?.42:.26, { valueEdges: true, valueScale: 1, bodyOpacity: .2, edgeOpacity: .5 });
             crystal.update(values, pos);
             if(model.architecture)for(let i=0;i<pos.length;i++){crystal.body.setColorAt(i,new T.Color(structuralColors[i]));crystal.edge.setColorAt(i,new T.Color(structuralColors[i]));}
-            this.crystalBatches.push({body:crystal.body,edge:crystal.edge,ids:dataIds,colors:new Float32Array(crystal.body.instanceColor!.array)});
         }
-        if(weightPos.length){const weights=createCrystalTensor(this.root,weightPos.length,model.architecture?.mode==='structure'?.44:.28,{parameter:true,valueEdges:true,valueScale:1,bodyOpacity:.3,edgeOpacity:.7});weights.update(weightValues,weightPos);if(model.architecture)for(let i=0;i<weightPos.length;i++){weights.body.setColorAt(i,new T.Color(weightColors[i]));weights.edge.setColorAt(i,new T.Color(weightColors[i]));}this.crystalBatches.push({body:weights.body,edge:weights.edge,ids:weightIds,colors:new Float32Array(weights.body.instanceColor!.array)});}
+        if(weightPos.length){const weights=createCrystalTensor(this.root,weightPos.length,model.architecture?.mode==='structure'?.44:.28,{parameter:true,valueEdges:true,valueScale:1,bodyOpacity:.3,edgeOpacity:.7});weights.update(weightValues,weightPos);if(model.architecture)for(let i=0;i<weightPos.length;i++){weights.body.setColorAt(i,new T.Color(weightColors[i]));weights.edge.setColorAt(i,new T.Color(weightColors[i]));}}
         if(model.architecture)this.structureMotion=new StructureMotion(this.root,this.nodes,this.planes,model);
         if(!model.architecture) {
         this.highlight = createCrystalTensor(this.root, 256, .27, { valueEdges: true, valueScale: 1 });
@@ -609,7 +591,6 @@ export class SiliconDevineViewer {
                     this.addActivationCurve(n, input, p);
             }
         }
-        this.assemblyBoundaries=new AssemblyBoundaries(this.root,this.assemblies,this.planes,new Map([...this.activationCurves].map(([id,plot])=>[id,plot.group])));
         // Small MLPs retain every weight line. Complex graphs instantiate only the active operator.
         const simple = this.nodes.length <= 12 && this.nodes.every(n => ['linear', 'relu', 'gelu', 'sigmoid', 'tanh', 'identity'].includes(n.op));
         if (simple)
@@ -642,7 +623,7 @@ export class SiliconDevineViewer {
                     }
                 }
             }
-            this.backbone=connectionFabric(this.root, backbone);this.backbone.update(0, -1, -1, 0, .55);
+            connectionFabric(this.root, backbone).update(0, -1, -1, 0, .55);
             if(model.architecture)this.connectionCount=this.nodes.reduce((sum,n)=>sum+n.inputs.length+Object.keys(n.parameters??{}).length,0);
         }
     }
@@ -699,14 +680,12 @@ export class SiliconDevineViewer {
         mesh.position.y = 0;
         group.add(mesh);
         // Place once, in the tensor's coordinate frame. Never move for screen-space collisions.
+        const side=parameter||p.center[0]<-.1?-1:1;
         const peers=[...this.planes.values()].filter(v=>Math.abs(v.center[1]-p.center[1])<.01);
-        const column=peers.filter(v=>Math.abs(v.center[0]-p.center[0])<.1&&!['parameter','buffer'].includes(v.tensor.role)).sort((a,b)=>a.center[2]-b.center[2]);
-        const slot=column.findIndex(v=>v.tensor.id===p.tensor.id);
-        const side=parameter?-1:column.length>1?(slot%2===0?-1:1):p.center[0]<-.1?-1:1;
         const neighbors=peers.filter(v=>side<0?v.center[0]<p.center[0]:v.center[0]>p.center[0]);
         // Parallel lanes use their own depth so captions do not all get detached to a global gutter.
         const z=neighbors.length?p.center[2]+p.depth/2+.3:p.center[2];
-        group.position.set(p.center[0]+side*(p.width/2+width/2+.18),p.center[1]+(inner?1.55:.35)+Math.max(0,Math.floor(slot/2))*.65,z);
+        group.position.set(p.center[0]+side*(p.width/2+width/2+.18),p.center[1]+(inner?1.55:.35),z);
         group.userData.composition=composition;
         group.userData.tensorId=p.tensor.id;
         group.userData.fixedAnchor=true;
@@ -806,13 +785,6 @@ export class SiliconDevineViewer {
             const hit=this.ray.ray.intersectBox(cellBox,point),d=hit?.distanceTo(this.ray.ray.origin)??Infinity;
             if(d<tensorDistance){tensorDistance=d;this.hovered=p.owner;this.hoveredTensor=p.tensor.id;}
         }
-        // The open frame is also a continuous picking region, including the
-        // space between a layer's weights, bias and output.
-        let frameDistance=Infinity;
-        for(const a of this.assemblies){const box=this.assemblyBoundaries?.bounds.get(a.id);if(!box)continue;
-            const hit=this.ray.ray.intersectBox(box,point),d=hit?.distanceTo(this.ray.ray.origin)??Infinity;
-            if(d<frameDistance){frameDistance=d;hover=a.nodes[0];}
-        }
         let cellDistance = Infinity;
         for (const n of this.nodes) {
             const id = n.parameters?.weight, p = id ? this.planes.get(id) : undefined;
@@ -868,24 +840,7 @@ export class SiliconDevineViewer {
             this.elapsed += dt * this.speed;
         this.clock += dt;
         const candidates = this.nodes.filter(n => n.inputs.length && !['cast', 'identity', 'arange'].includes(n.op)), auto = candidates[Math.floor(this.elapsed / 3.6) % Math.max(1, candidates.length)];
-        const lockedAssembly=this.selected?this.assemblyByNode.get(this.selected):undefined;
-        const localHover=!lockedAssembly||lockedAssembly.nodes.includes(this.hovered??'')?this.hovered:undefined;
-        this.active = localHover ?? this.selected ?? auto?.id ?? '';
-        const chosen=this.selected??this.hovered,assembly=chosen?this.assemblyByNode.get(chosen):undefined;
-        const members=new Set(assembly?.related??[]),operators=new Set(assembly?.nodes??[]);
-        this.assemblyBoundaries?.update(assembly?.id);
-        if(this.emphasizedAssembly!==(assembly?.id??'')){
-            this.emphasizedAssembly=assembly?.id??'';
-            const color=new T.Color();
-            for(const batch of this.crystalBatches){
-                for(let i=0;i<batch.ids.length;i++){
-                    color.fromArray(batch.colors,i*3).multiplyScalar(!assembly?1:members.has(batch.ids[i])?1.15:.27);
-                    batch.body.setColorAt(i,color);batch.edge.setColorAt(i,color);
-                }
-                batch.body.instanceColor!.needsUpdate=true;batch.edge.instanceColor!.needsUpdate=true;
-            }
-            this.backbone?.update(0,-1,-1,0,assembly?.18:.55);
-        }
+        this.active = this.hovered ?? this.selected ?? auto?.id ?? '';
         if(this.structureMotion){this.structureMotion.update(this.active,this.elapsed);this.weightState=undefined;this.sampleState=undefined;for(const r of this.residualRoutes)r.stream.update(r.curve,this.elapsed*.25,r.node===this.active?1:.2);}
         else {
         this.setActive(this.active);
@@ -921,8 +876,7 @@ export class SiliconDevineViewer {
         this.mechanism?.update(active, out, out?.indices[outputIndex] ?? 0, phase, this.planes, this.tensors);
         for (const [id, f] of this.fabrics) {
             const n = this.nodes.find(n => n.id === id)!, p = this.planes.get(n.outputs[0])!;
-            const relevance=!assembly||operators.has(id)?1:.16;
-            f.update(phase, id === this.active ? outputOffset + outputIndex : phase * p.indices.length, id === this.active ? termCursor : phase * 8, relevance*(id === this.active ? (n.attrs?.attentionRole === 'context' ? .10 : 1) : .12), relevance*(n.attrs?.attentionRole === 'context' ? .025 : n.op.startsWith('conv') ? .07 : id === this.active ? 1 : .65), id === this.active ? linked : -1);
+            f.update(phase, id === this.active ? outputOffset + outputIndex : phase * p.indices.length, id === this.active ? termCursor : phase * 8, id === this.active ? (n.attrs?.attentionRole === 'context' ? .10 : 1) : .12, n.attrs?.attentionRole === 'context' ? .025 : n.op.startsWith('conv') ? .07 : id === this.active ? 1 : .65, id === this.active ? linked : -1);
         }
         this.connectionCount = [...this.edges.values()].reduce((s, e) => s + e.length, 0);
         const flowing = this.edges.get(this.active) ?? [], current = flowing.filter(e => linked >= 0 ? e.parameterIndex !== undefined && Math.abs(e.parameterIndex - linked) < 1 : e.output === outputOffset + outputIndex);
@@ -983,21 +937,18 @@ export class SiliconDevineViewer {
             const x=valueAt(this.tensors.get(n.inputs[0])!,index),y=valueAt(this.tensors.get(n.outputs[0])!,index);
             const active=id===this.active&&Number.isFinite(x)&&Number.isFinite(y);
             plot.update(x,y,active,this.nodes.length<=12);
-            if(assembly&&!operators.has(id))plot.group.visible=false;
             if(active)this.sampleState={input:x,output:y,index};
         }
         }
         const shown:T.Box2[]=[];
         this.root.updateMatrixWorld(true);
-        const selectedAssembly=this.selected?this.assemblyByNode.get(this.selected):undefined;
-        const showAssemblyCards=!!selectedAssembly&&assembly?.id===selectedAssembly.id;
+        const chosen=this.hovered??this.selected;
         const cardCandidates=[...this.cards].sort((a,b)=>Number(b.id===this.hoveredTensor)-Number(a.id===this.hoveredTensor)||Number(b.owner===chosen)-Number(a.owner===chosen)||b.priority-a.priority);
         const owners=new Set<string>();
         const viewport=new T.Box2(new T.Vector2(-1,-1),new T.Vector2(1,1));
         const cameraOrientation=this.camera.getWorldQuaternion(new T.Quaternion());
         for(const card of cardCandidates){
-            const member=members.has(card.id);
-            const wanted=this.labelMode==='all'||this.labelMode==='auto'&&(showAssemblyCards?member:chosen?card.owner===chosen:card.priority>0);
+            const wanted=this.labelMode==='all'||this.labelMode==='auto'&&(chosen?card.owner===chosen:card.priority>0);
             card.group.visible=false;
             if(!wanted)continue;
             const mesh=card.group.children[0] as T.Mesh;mesh.geometry.computeBoundingBox();const b=mesh.geometry.boundingBox!;
@@ -1010,16 +961,15 @@ export class SiliconDevineViewer {
             // rejects them against the model's overly broad projected bounding boxes.
             const owner=card.owner??card.id;
             const inView=projected.every(p=>p.z>=-1&&p.z<=1)&&rect.intersectsBox(viewport);
-            card.group.visible=this.labelMode==='all'||showAssemblyCards&&member||inView&&!owners.has(owner)&&shown.length<(chosen?1:this.structureMotion?6:4)&&!shown.some(r=>r.intersectsBox(rect));
+            card.group.visible=this.labelMode==='all'||inView&&!owners.has(owner)&&shown.length<(chosen?1:this.structureMotion?6:4)&&!shown.some(r=>r.intersectsBox(rect));
             if(card.group.visible)shown.push(rect);
             if(card.group.visible)owners.add(owner);
-            (mesh.material as T.MeshBasicMaterial).opacity=member?1:assembly?.3:.9;
+            (mesh.material as T.MeshBasicMaterial).opacity=card.owner===chosen?1:.9;
         }
         for(const [id,outline] of this.planeOutlines){
-            const p=this.planes.get(id)!,highlight=members.has(id);
-            const m=outline.material as T.LineBasicMaterial;m.opacity=highlight?.95:assembly?.13:.48;
-            m.color.set(highlight?assembly!.color:p.tensor.role==='parameter'?'#bc986c':'#65b4c7');
-            (this.planePlates.get(id)!.material as T.MeshBasicMaterial).opacity=highlight?.2:assembly?.035:.1;
+            const p=this.planes.get(id)!,highlight=!!chosen&&p.owner===chosen;
+            const m=outline.material as T.LineBasicMaterial;m.opacity=highlight?.95:.48;
+            m.color.set(highlight?'#effaff':p.tensor.role==='parameter'?'#bc986c':'#65b4c7');
         }
         this.renderer.render(this.scene, this.camera);
         if (this.clock > .25 || !this.playing) {

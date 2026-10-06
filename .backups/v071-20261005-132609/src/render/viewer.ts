@@ -1,6 +1,4 @@
 import { FunctionPlot } from './functionPlot.js';
-import {modelAssemblies,type Assembly} from '../core/assemblies.js';
-import {AssemblyBoundaries} from './assemblyBoundaries.js';
 import { structureSummary } from '../core/structureSummary.js';
 import { StructureMotion, structureColors } from './structureMotion.js';
 import { GaussianMotion } from './gaussianMotion.js';
@@ -88,19 +86,11 @@ export class SiliconDevineViewer {
     private nodes: Operation[] = [];
     private cards: Card[] = [];
     private planeOutlines=new Map<string,T.LineSegments>();
-    private planePlates=new Map<string,T.Mesh>();
-    private assemblies:Assembly[]=[];
-    private assemblyBoundaries?:AssemblyBoundaries;
-    private assemblyByNode=new Map<string,Assembly>();
-    private emphasizedAssembly='';
-    private crystalBatches:{body:T.InstancedMesh;edge:T.InstancedMesh;ids:string[];colors:Float32Array}[]=[];
-    private backbone?:Fabric;
     private fabrics = new Map<string, Fabric>();
     private edges = new Map<string, Connection[]>();
     private pageStart = 0;
     private selected?: string;
     private hovered?: string;
-    private hoveredTensor?:string;
     private active = '';
     private cachedActive = '';
     private connectionCount = 0;
@@ -118,9 +108,6 @@ export class SiliconDevineViewer {
         number,
         number
     ];
-    private pointerDragged=false;
-    private pointerCount=new Set<number>();
-    private navigationMode:'rotate'|'pan'='rotate';
     private ray = new T.Raycaster();
     private reduced: MediaQueryList;
     private activationCurves = new Map<string, FunctionPlot>();
@@ -191,7 +178,7 @@ export class SiliconDevineViewer {
         this.renderer.outputColorSpace = T.SRGBColorSpace;
         container.append(this.renderer.domElement);
         this.renderer.domElement.style.cssText = 'width:100%;height:100%;display:block;touch-action:none;';
-        this.renderer.domElement.setAttribute('aria-label', '神经网络三维视图；左键旋转，右键或 Shift 拖动平移，滚轮缩放，点击聚焦。方向键平移，Shift 加方向键旋转，Home 总览。');
+        this.renderer.domElement.setAttribute('aria-label', '神经网络三维视图；拖动旋转，滚轮缩放，点击聚焦。可用旁侧索引选择模块。');
         this.scene.add(this.root, new T.HemisphereLight('#bcdff3', '#142335', 2));
         const key = new T.DirectionalLight('#e1f8ff', 3);
         key.position.set(8, 20, 15);
@@ -201,15 +188,7 @@ export class SiliconDevineViewer {
         this.controls.dampingFactor = .1;
         this.controls.minDistance = .3;
         this.controls.maxDistance = 2000;
-        this.controls.zoomToCursor = false;
-        this.controls.screenSpacePanning = true;
-        this.controls.rotateSpeed=.65;
-        this.controls.panSpeed=.85;
-        this.controls.zoomSpeed=.8;
-        this.controls.minPolarAngle=.03;
-        this.controls.maxPolarAngle=Math.PI-.03;
-        this.controls.mouseButtons={LEFT:T.MOUSE.ROTATE,MIDDLE:T.MOUSE.DOLLY,RIGHT:T.MOUSE.PAN};
-        this.controls.touches={ONE:T.TOUCH.ROTATE,TWO:T.TOUCH.DOLLY_PAN};
+        this.controls.zoomToCursor = true;
         this.controls.addEventListener('change', this.onControlsChange);
         this.controls.addEventListener('start',this.stopFlight);
         this.observer = new ResizeObserver(() => {
@@ -231,7 +210,6 @@ export class SiliconDevineViewer {
         c.addEventListener('pointerleave', this.onLeave);
         c.addEventListener('pointerdown', this.onDown);
         c.addEventListener('pointerup', this.onUp);
-        c.addEventListener('pointercancel', this.onCancel);
         c.addEventListener('webglcontextlost', this.onLost);
         c.addEventListener('webglcontextrestored', this.onRestored);
         this.frame = requestAnimationFrame(this.animate);
@@ -277,7 +255,6 @@ export class SiliconDevineViewer {
         this.scopedCount = all.length;
         this.selected = undefined;
         this.hovered = undefined;
-        this.hoveredTensor=undefined;
         this.pageStart = Math.max(0, Math.min(Math.max(0, all.length - 1), Math.floor(start)));
         const nodes = all.slice(this.pageStart, this.pageStart + limit), ids = new Set(nodes.flatMap(n => [...n.inputs, ...n.outputs, ...Object.values(n.parameters ?? {})]));
         if (!nodes.length)
@@ -422,39 +399,11 @@ export class SiliconDevineViewer {
         }
         this.selected = id;
         this.options.onSelect?.(node);
-        const unit=this.assemblyByNode.get(id),bounds=unit?this.assemblyBoundaries?.bounds.get(unit.id):undefined;
-        const ids = unit&&bounds?[...unit.owned,...unit.inputs.filter(id=>{const p=this.planes.get(id);return p&&p.center[1]<=bounds.max.y+Math.max(6,bounds.max.y-bounds.min.y);})]:[...node.inputs,...node.outputs,...Object.values(node.parameters??{})];
+        const ids = [...node.inputs, ...node.outputs, ...Object.values(node.parameters ?? {})];
         this.fit(ids);
     }
     clearFocus() { this.selected = undefined; this.options.onSelect?.(undefined); this.fit(); }
-    /** Inspect a visual functional unit without changing or contracting its graph. */
-    getAssembly(nodeId:string){const a=this.assemblyByNode.get(nodeId);return a?{...a,nodes:[...a.nodes],owned:[...a.owned],inputs:[...a.inputs],related:[...a.related]}:undefined;}
     zoom(factor: number) { this.stopFlight(); const delta = this.camera.position.clone().sub(this.controls.target).multiplyScalar(factor); delta.clampLength(this.controls.minDistance, this.controls.maxDistance); this.camera.position.copy(this.controls.target).add(delta); this.controls.update(); }
-    setNavigationMode(mode:'rotate'|'pan'){
-        this.navigationMode=mode;
-        this.controls.mouseButtons.LEFT=mode==='pan'?T.MOUSE.PAN:T.MOUSE.ROTATE;
-        this.controls.touches.ONE=mode==='pan'?T.TOUCH.PAN:T.TOUCH.ROTATE;
-        this.renderer.domElement.style.cursor=mode==='pan'?'move':'grab';
-    }
-    /** Move in screen coordinates; both eye and target move by the same amount. */
-    pan(horizontal:number,vertical:number){
-        this.stopFlight();this.camera.updateMatrixWorld();
-        const height=2*this.camera.position.distanceTo(this.controls.target)*Math.tan(T.MathUtils.degToRad(this.camera.fov/2));
-        const delta=new T.Vector3().setFromMatrixColumn(this.camera.matrixWorld,0).multiplyScalar(horizontal*height)
-            .addScaledVector(new T.Vector3().setFromMatrixColumn(this.camera.matrixWorld,1),vertical*height);
-        this.camera.position.add(delta);this.controls.target.add(delta);this.controls.update();this.dirty=true;
-    }
-    orbit(horizontal:number,vertical:number){
-        this.stopFlight();const s=new T.Spherical().setFromVector3(this.camera.position.clone().sub(this.controls.target));
-        s.theta+=horizontal;s.phi=T.MathUtils.clamp(s.phi+vertical,.03,Math.PI-.03);
-        this.camera.position.copy(this.controls.target).add(new T.Vector3().setFromSpherical(s));this.controls.update();this.dirty=true;
-    }
-    setView(view:'front'|'oblique'){
-        this.stopFlight();const distance=this.camera.position.distanceTo(this.controls.target);
-        const direction=view==='front'?new T.Vector3(0,0,1):new T.Vector3(.22,.45,1).normalize();
-        this.cameraFlight={from:this.camera.position.clone(),to:this.controls.target.clone().addScaledVector(direction,distance),targetFrom:this.controls.target.clone(),targetTo:this.controls.target.clone(),time:0};
-        if(this.reduced.matches){this.camera.position.copy(this.cameraFlight.to);this.cameraFlight=undefined;this.controls.update();}this.dirty=true;
-    }
     async fullscreen() {
         if (document.fullscreenElement === this.container)
             await document.exitFullscreen();
@@ -472,7 +421,8 @@ export class SiliconDevineViewer {
         this.root.updateMatrixWorld(true);
         // Include the focused caption once; orbiting never triggers a camera refit.
         if(ids&&this.selected){
-            for(const card of this.cards.filter(c=>ids.includes(c.id))){
+            const card=this.cards.filter(c=>c.owner===this.selected).sort((a,b)=>b.priority-a.priority)[0];
+            if(card){
                 const mesh=card.group.children[0] as T.Mesh;mesh.geometry.computeBoundingSphere();
                 const radius=mesh.geometry.boundingSphere!.radius;
                 box.expandByPoint(card.anchor.clone().addScalar(radius));
@@ -484,7 +434,7 @@ export class SiliconDevineViewer {
             box.setFromCenterAndSize(new T.Vector3(), new T.Vector3(5, 5, 5));
         const size = box.getSize(new T.Vector3()), center = box.getCenter(new T.Vector3());
         const vertical = Math.max(size.y, size.z * .7), horizontal = size.x / Math.max(.3, this.camera.aspect), distance = Math.max(vertical, horizontal, 4) / (2 * Math.tan(T.MathUtils.degToRad(this.camera.fov / 2))) * 1.3;
-        const destination=center.clone().add(new T.Vector3(.22,.45,1).normalize().multiplyScalar(distance));
+        const destination=center.clone().add(new T.Vector3(.22,.22,1).normalize().multiplyScalar(distance));
         if(!this.reduced.matches&&this.camera.position.length()>1){
             this.cameraFlight={from:this.camera.position.clone(),to:destination,targetFrom:this.controls.target.clone(),targetTo:center,time:0};
         }else{this.cameraFlight=undefined;this.controls.target.copy(center);this.camera.position.copy(destination);this.controls.update();}
@@ -515,7 +465,6 @@ export class SiliconDevineViewer {
         this.root.clear();
         this.cards = [];
         this.planeOutlines.clear();
-        this.planePlates.clear();this.assemblyBoundaries=undefined;this.assemblyByNode.clear();this.assemblies=[];this.emphasizedAssembly='';this.crystalBatches=[];this.backbone=undefined;
         this.arrows = [];
         this.activationCurves.clear();
         this.regions = [];
@@ -538,24 +487,19 @@ export class SiliconDevineViewer {
         this.tensors = new Map(this.getDisplayedModel()!.tensors.map(t => [t.id, t]));
         const budget = Math.max(512, Math.min(16384, this.options.maxCells ?? 8192)), per = Math.max(1, Math.min(this.options.cellsPerTensor ?? 128, Math.floor(budget / Math.max(1, model.tensors.length))));
         this.planes = layoutModel(model, per, this.origins);
-        this.assemblies=modelAssemblies(model,this.nodes);
-        this.assemblies.forEach(a=>a.nodes.forEach(id=>this.assemblyByNode.set(id,a)));
         const pos: Position3[] = [], values: number[] = [], weightPos:Position3[]=[], weightValues:number[]=[], structuralColors:string[]=[], weightColors:string[]=[];
-        const dataIds:string[]=[],weightIds:string[]=[];
         for (const p of this.planes.values()) {
             this.positions.set(p.tensor.id, new Map(p.indices.map((v, i) => [v, p.positions[i]])));
             const extent = Math.max(p.tensor.stats?.absmax ?? 0, valueExtent([...(p.tensor.data?.values ?? []), ...Object.values(p.tensor.samples ?? {})].map(v => v ?? NaN)));
             this.extents.set(p.tensor.id, Math.max(extent, 1e-12));
             const weight=p.tensor.role==='parameter';
             (weight?weightPos:pos).push(...p.positions);
-            (weight?weightIds:dataIds).push(...p.positions.map(()=>p.tensor.id));
             (weight?weightValues:values).push(...p.indices.map(i => valueAt(p.tensor, i) / Math.max(extent, 1e-12)));
             const owner=this.nodes.find(n=>n.id===p.owner), color=weight?'#d0b790':p.tensor.role==='buffer'?'#a3b7a5':structureColors[String(owner?.attrs?.kind)]??'#91bbca';
             (weight?weightColors:structuralColors).push(...p.positions.map(()=>color));
             const plate = new T.Mesh(new T.BoxGeometry(Math.max(p.width, .8), .018, Math.max(p.depth, .5)), new T.MeshBasicMaterial({ color: '#3c7187', transparent: true, opacity: .1, depthWrite: false }));
             plate.position.set(p.center[0], p.center[1] - .16, p.center[2]);
             this.root.add(plate);
-            this.planePlates.set(p.tensor.id,plate);
             const outline = new T.LineSegments(new T.EdgesGeometry(plate.geometry), new T.LineBasicMaterial({ color: p.tensor.role === 'parameter' ? '#bc986c' : '#65b4c7', transparent: true, opacity: .48 }));
             outline.position.copy(plate.position);
             this.root.add(outline);
@@ -578,9 +522,8 @@ export class SiliconDevineViewer {
             const crystal = createCrystalTensor(this.root, pos.length, model.architecture?.mode==='structure'?.42:.26, { valueEdges: true, valueScale: 1, bodyOpacity: .2, edgeOpacity: .5 });
             crystal.update(values, pos);
             if(model.architecture)for(let i=0;i<pos.length;i++){crystal.body.setColorAt(i,new T.Color(structuralColors[i]));crystal.edge.setColorAt(i,new T.Color(structuralColors[i]));}
-            this.crystalBatches.push({body:crystal.body,edge:crystal.edge,ids:dataIds,colors:new Float32Array(crystal.body.instanceColor!.array)});
         }
-        if(weightPos.length){const weights=createCrystalTensor(this.root,weightPos.length,model.architecture?.mode==='structure'?.44:.28,{parameter:true,valueEdges:true,valueScale:1,bodyOpacity:.3,edgeOpacity:.7});weights.update(weightValues,weightPos);if(model.architecture)for(let i=0;i<weightPos.length;i++){weights.body.setColorAt(i,new T.Color(weightColors[i]));weights.edge.setColorAt(i,new T.Color(weightColors[i]));}this.crystalBatches.push({body:weights.body,edge:weights.edge,ids:weightIds,colors:new Float32Array(weights.body.instanceColor!.array)});}
+        if(weightPos.length){const weights=createCrystalTensor(this.root,weightPos.length,model.architecture?.mode==='structure'?.44:.28,{parameter:true,valueEdges:true,valueScale:1,bodyOpacity:.3,edgeOpacity:.7});weights.update(weightValues,weightPos);if(model.architecture)for(let i=0;i<weightPos.length;i++){weights.body.setColorAt(i,new T.Color(weightColors[i]));weights.edge.setColorAt(i,new T.Color(weightColors[i]));}}
         if(model.architecture)this.structureMotion=new StructureMotion(this.root,this.nodes,this.planes,model);
         if(!model.architecture) {
         this.highlight = createCrystalTensor(this.root, 256, .27, { valueEdges: true, valueScale: 1 });
@@ -609,7 +552,6 @@ export class SiliconDevineViewer {
                     this.addActivationCurve(n, input, p);
             }
         }
-        this.assemblyBoundaries=new AssemblyBoundaries(this.root,this.assemblies,this.planes,new Map([...this.activationCurves].map(([id,plot])=>[id,plot.group])));
         // Small MLPs retain every weight line. Complex graphs instantiate only the active operator.
         const simple = this.nodes.length <= 12 && this.nodes.every(n => ['linear', 'relu', 'gelu', 'sigmoid', 'tanh', 'identity'].includes(n.op));
         if (simple)
@@ -642,7 +584,7 @@ export class SiliconDevineViewer {
                     }
                 }
             }
-            this.backbone=connectionFabric(this.root, backbone);this.backbone.update(0, -1, -1, 0, .55);
+            connectionFabric(this.root, backbone).update(0, -1, -1, 0, .55);
             if(model.architecture)this.connectionCount=this.nodes.reduce((sum,n)=>sum+n.inputs.length+Object.keys(n.parameters??{}).length,0);
         }
     }
@@ -660,9 +602,7 @@ export class SiliconDevineViewer {
         const owner = this.nodes.find(n => n.id === p.owner), visual = operatorVisual(owner?.op ?? '');
         const roles = (owner?.attrs?.projectionRoles ?? []) as string[], role = roles.join('/');
         const parameter = p.tensor.role === 'parameter' || p.tensor.role === 'buffer';
-        const parameterKey=Object.entries(owner?.parameters??{}).find(([,id])=>id===p.tensor.id)?.[0];
-        const bufferTitle=parameterKey?({running_mean:'运行均值 μ',running_var:'运行方差 σ²',num_batches_tracked:'统计批次数'} as Record<string,string>)[parameterKey]:undefined;
-        const title = bufferTitle??(!parameter&&owner?.attrs?.displayLabel?String(owner.attrs.displayLabel):['semantic','layout'].includes(owner?.op??'')&&!parameter?owner!.name.split(' · ')[0]:modelTitle());
+        const title = !parameter&&owner?.attrs?.displayLabel?String(owner.attrs.displayLabel):['semantic','layout'].includes(owner?.op??'')&&!parameter?owner!.name.split(' · ')[0]:modelTitle();
         function modelTitle(){return owner?.op==='structure'&&!parameter?owner.name:parameter ? ((owner?.parameters?.weight === p.tensor.id || owner?.parameters?.W === p.tensor.id || owner?.parameters?.W_KV === p.tensor.id) ? (owner.op.includes('norm') ? '缩放 γ' : role ? 'W' + role : '权重 W') : owner?.parameters?.bias === p.tensor.id ? '偏置 b' : p.tensor.id.endsWith(':gamma')?'归一化尺度 γ':p.tensor.semantic ?? p.tensor.source ?? p.tensor.id) : role ? role + ' · Token 投影' : owner?.attrs?.attentionRole === 'score' ? 'Query × Key' : owner?.attrs?.attentionRole === 'probability' ? '注意力分配' : owner?.attrs?.attentionRole === 'context' ? 'Token · 加权结果' : owner?.attrs?.residualInput ? '残差汇合' : p.tensor.semantic ?? (owner?.op === 'module' ? String(owner.attrs?.moduleType) : owner ? visual.label : '输入');}
 
         // Typography floats in world space; no frame or detached leader line.
@@ -682,36 +622,26 @@ export class SiliconDevineViewer {
             c.font='32px \"Segoe UI\", sans-serif';
             textRows.forEach((text,i)=>{c.fillStyle='#c4dce7';c.fillText(text,16,223+i*38,850);});
         }
-        // Crop transparent padding before anchoring the near edge to the tensor.
-        c.font='500 55px "Segoe UI", sans-serif';
-        let ink=Math.min(855,c.measureText(title.length>28?title.slice(0,27)+'…':title).width)+28;
-        c.font='400 33px "Segoe UI", sans-serif';
-        ink=Math.max(ink,Math.min(850,c.measureText(p.tensor.shape.join(' × ')+'  '+(p.tensor.axes?.join(' · ')??p.tensor.dtype)).width)+32);
-        if(inner||textRows.length)ink=896;
-        const cropped=document.createElement('canvas');cropped.width=Math.min(896,Math.ceil(ink));cropped.height=canvas.height;
-        cropped.getContext('2d')!.drawImage(canvas,0,0);
-        const texture = new T.CanvasTexture(cropped);
+        const texture = new T.CanvasTexture(canvas);
         texture.colorSpace = T.SRGBColorSpace;
-        const typeScale=(this.nodes.length>12?7.2:5.2)/896,width=typeScale*cropped.width;
-        const mesh = new T.Mesh(new T.PlaneGeometry(width, typeScale * canvas.height), new T.MeshBasicMaterial({ map: texture, transparent: true, opacity: .94, side: T.DoubleSide, depthWrite: false, depthTest: false }));
+        const width = this.nodes.length>12?7.2:5.2;
+        const mesh = new T.Mesh(new T.PlaneGeometry(width, width * canvas.height / 896), new T.MeshBasicMaterial({ map: texture, transparent: true, opacity: .94, side: T.DoubleSide, depthWrite: false, depthTest: false }));
         mesh.renderOrder=20;
         const group = new T.Group();
         mesh.position.y = 0;
         group.add(mesh);
         // Place once, in the tensor's coordinate frame. Never move for screen-space collisions.
+        const side=parameter||p.center[0]<-.1?-1:1;
         const peers=[...this.planes.values()].filter(v=>Math.abs(v.center[1]-p.center[1])<.01);
-        const column=peers.filter(v=>Math.abs(v.center[0]-p.center[0])<.1&&!['parameter','buffer'].includes(v.tensor.role)).sort((a,b)=>a.center[2]-b.center[2]);
-        const slot=column.findIndex(v=>v.tensor.id===p.tensor.id);
-        const side=parameter?-1:column.length>1?(slot%2===0?-1:1):p.center[0]<-.1?-1:1;
         const neighbors=peers.filter(v=>side<0?v.center[0]<p.center[0]:v.center[0]>p.center[0]);
         // Parallel lanes use their own depth so captions do not all get detached to a global gutter.
-        const z=neighbors.length?p.center[2]+p.depth/2+.3:p.center[2];
-        group.position.set(p.center[0]+side*(p.width/2+width/2+.18),p.center[1]+(inner?1.55:.35)+Math.max(0,Math.floor(slot/2))*.65,z);
+        const z=neighbors.length?p.center[2]+p.depth/2+.65:p.center[2];
+        group.position.set(p.center[0]+side*(p.width/2+width/2+.35),p.center[1]+(inner?1.55:.35),z);
         group.userData.composition=composition;
         group.userData.tensorId=p.tensor.id;
         group.userData.fixedAnchor=true;
         const accent=new T.Mesh(new T.BoxGeometry(.2,.035,.025),new T.MeshBasicMaterial({color:owner?.op==='structure'?structureColors[String(owner.attrs?.kind)]??visual.color:visual.color,transparent:true,opacity:.8}));
-        accent.position.set(side<0?width/2-.04:-width/2+.04,-typeScale*canvas.height/2+.05,.025);mesh.add(accent);
+        accent.position.set(-width/2+.06,.12,.025);group.add(accent);
         this.root.add(group);
         this.cards.push({ group, anchor: group.position.clone(), id: p.tensor.id, owner: p.owner, priority: parameter || !owner || owner.op==='layout' ? 0 : owner.op==='structure'||owner.attrs?.attentionRole||owner.attrs?.gaussianHead ? 2 : 1 });
     }
@@ -775,11 +705,8 @@ export class SiliconDevineViewer {
     }
     private onMove = (e: PointerEvent) => {
         this.dirty = true;
-        if (e.buttons){
-            if(this.pointerStart&&Math.hypot(e.clientX-this.pointerStart[0],e.clientY-this.pointerStart[1])>=4)this.pointerDragged=true;
-            this.renderer.domElement.style.cursor=this.navigationMode==='pan'||e.buttons===2||e.shiftKey?'move':'grabbing';
+        if (e.buttons)
             return;
-        }
         const r = this.renderer.domElement.getBoundingClientRect();
         this.ray.setFromCamera(new T.Vector2((e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2), this.camera);
         let distance = Infinity, hover: string | undefined;
@@ -795,24 +722,8 @@ export class SiliconDevineViewer {
             }
         }
         this.hovered = hover;
-        this.hoveredTensor=undefined;
         this.hoveredWeight = undefined;
         const cellBox = new T.Box3(), cellSize = new T.Vector3(.29, .29, .29);
-        let tensorDistance=Infinity;
-        for(const p of this.planes.values()){
-            if(!p.owner)continue;
-            cellBox.min.set(p.center[0]-p.width/2,p.center[1]-.15,p.center[2]-p.depth/2);
-            cellBox.max.set(p.center[0]+p.width/2,p.center[1]+p.height,p.center[2]+p.depth/2);
-            const hit=this.ray.ray.intersectBox(cellBox,point),d=hit?.distanceTo(this.ray.ray.origin)??Infinity;
-            if(d<tensorDistance){tensorDistance=d;this.hovered=p.owner;this.hoveredTensor=p.tensor.id;}
-        }
-        // The open frame is also a continuous picking region, including the
-        // space between a layer's weights, bias and output.
-        let frameDistance=Infinity;
-        for(const a of this.assemblies){const box=this.assemblyBoundaries?.bounds.get(a.id);if(!box)continue;
-            const hit=this.ray.ray.intersectBox(box,point),d=hit?.distanceTo(this.ray.ray.origin)??Infinity;
-            if(d<frameDistance){frameDistance=d;hover=a.nodes[0];}
-        }
         let cellDistance = Infinity;
         for (const n of this.nodes) {
             const id = n.parameters?.weight, p = id ? this.planes.get(id) : undefined;
@@ -827,29 +738,21 @@ export class SiliconDevineViewer {
                 if (hit && hit.distanceTo(this.ray.ray.origin) < cellDistance) {
                     cellDistance = hit.distanceTo(this.ray.ray.origin);
                     this.hoveredWeight = { tensor: id!, index: p.indices[i] };
-                    this.hoveredTensor=id;
                     this.hovered = n.id;
                 }
             }
         }
         const captionHit=this.ray.intersectObjects(this.cards.filter(c=>c.group.visible&&c.owner).map(c=>c.group.children[0]),false)[0];
-        if(captionHit){const card=this.cards.find(c=>c.group.children[0]===captionHit.object)!;this.hovered=card.owner;this.hoveredTensor=card.id;this.hoveredWeight=undefined;}
-        this.renderer.domElement.style.cursor = this.navigationMode==='pan'?'move':this.hovered ? 'pointer' : 'grab';
+        if(captionHit){const card=this.cards.find(c=>c.group.children[0]===captionHit.object)!;this.hovered=card.owner;this.hoveredWeight=undefined;}
+        this.renderer.domElement.style.cursor = this.hovered ? 'pointer' : 'grab';
     };
-    private onLeave = () => { this.hovered = undefined; this.hoveredTensor=undefined;this.hoveredWeight = undefined; this.dirty = true; };
-    private onDown = (e: PointerEvent) => {
-        this.container.focus({preventScroll:true});this.pointerCount.add(e.pointerId);
-        if(this.pointerCount.size>1){this.pointerDragged=true;return;}
-        this.pointerDragged=false;
-        this.pointerStart=e.button===0&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&this.navigationMode==='rotate'?[e.clientX,e.clientY]:undefined;
-    };
+    private onLeave = () => { this.hovered = undefined; this.hoveredWeight = undefined; this.dirty = true; };
+    private onDown = (e: PointerEvent) => { this.pointerStart = [e.clientX, e.clientY]; };
     private onUp = (e: PointerEvent) => {
-        if (e.button===0&&!this.pointerDragged&&this.pointerCount.size===1&&this.pointerStart && Math.hypot(e.clientX - this.pointerStart[0], e.clientY - this.pointerStart[1]) < 4 && this.hovered)
+        if (this.pointerStart && Math.hypot(e.clientX - this.pointerStart[0], e.clientY - this.pointerStart[1]) < 4 && this.hovered)
             this.focus(this.hovered);
-        this.pointerCount.delete(e.pointerId);this.pointerStart = undefined;
-        this.renderer.domElement.style.cursor=this.navigationMode==='pan'?'move':'grab';
+        this.pointerStart = undefined;
     };
-    private onCancel=(e:PointerEvent)=>{this.pointerCount.delete(e.pointerId);this.pointerStart=undefined;this.pointerDragged=true;};
     private animate = (time: number) => {
         if (this.disposed)
             return;
@@ -868,24 +771,7 @@ export class SiliconDevineViewer {
             this.elapsed += dt * this.speed;
         this.clock += dt;
         const candidates = this.nodes.filter(n => n.inputs.length && !['cast', 'identity', 'arange'].includes(n.op)), auto = candidates[Math.floor(this.elapsed / 3.6) % Math.max(1, candidates.length)];
-        const lockedAssembly=this.selected?this.assemblyByNode.get(this.selected):undefined;
-        const localHover=!lockedAssembly||lockedAssembly.nodes.includes(this.hovered??'')?this.hovered:undefined;
-        this.active = localHover ?? this.selected ?? auto?.id ?? '';
-        const chosen=this.selected??this.hovered,assembly=chosen?this.assemblyByNode.get(chosen):undefined;
-        const members=new Set(assembly?.related??[]),operators=new Set(assembly?.nodes??[]);
-        this.assemblyBoundaries?.update(assembly?.id);
-        if(this.emphasizedAssembly!==(assembly?.id??'')){
-            this.emphasizedAssembly=assembly?.id??'';
-            const color=new T.Color();
-            for(const batch of this.crystalBatches){
-                for(let i=0;i<batch.ids.length;i++){
-                    color.fromArray(batch.colors,i*3).multiplyScalar(!assembly?1:members.has(batch.ids[i])?1.15:.27);
-                    batch.body.setColorAt(i,color);batch.edge.setColorAt(i,color);
-                }
-                batch.body.instanceColor!.needsUpdate=true;batch.edge.instanceColor!.needsUpdate=true;
-            }
-            this.backbone?.update(0,-1,-1,0,assembly?.18:.55);
-        }
+        this.active = this.hovered ?? this.selected ?? auto?.id ?? '';
         if(this.structureMotion){this.structureMotion.update(this.active,this.elapsed);this.weightState=undefined;this.sampleState=undefined;for(const r of this.residualRoutes)r.stream.update(r.curve,this.elapsed*.25,r.node===this.active?1:.2);}
         else {
         this.setActive(this.active);
@@ -921,8 +807,7 @@ export class SiliconDevineViewer {
         this.mechanism?.update(active, out, out?.indices[outputIndex] ?? 0, phase, this.planes, this.tensors);
         for (const [id, f] of this.fabrics) {
             const n = this.nodes.find(n => n.id === id)!, p = this.planes.get(n.outputs[0])!;
-            const relevance=!assembly||operators.has(id)?1:.16;
-            f.update(phase, id === this.active ? outputOffset + outputIndex : phase * p.indices.length, id === this.active ? termCursor : phase * 8, relevance*(id === this.active ? (n.attrs?.attentionRole === 'context' ? .10 : 1) : .12), relevance*(n.attrs?.attentionRole === 'context' ? .025 : n.op.startsWith('conv') ? .07 : id === this.active ? 1 : .65), id === this.active ? linked : -1);
+            f.update(phase, id === this.active ? outputOffset + outputIndex : phase * p.indices.length, id === this.active ? termCursor : phase * 8, id === this.active ? (n.attrs?.attentionRole === 'context' ? .10 : 1) : .12, n.attrs?.attentionRole === 'context' ? .025 : n.op.startsWith('conv') ? .07 : id === this.active ? 1 : .65, id === this.active ? linked : -1);
         }
         this.connectionCount = [...this.edges.values()].reduce((s, e) => s + e.length, 0);
         const flowing = this.edges.get(this.active) ?? [], current = flowing.filter(e => linked >= 0 ? e.parameterIndex !== undefined && Math.abs(e.parameterIndex - linked) < 1 : e.output === outputOffset + outputIndex);
@@ -983,21 +868,18 @@ export class SiliconDevineViewer {
             const x=valueAt(this.tensors.get(n.inputs[0])!,index),y=valueAt(this.tensors.get(n.outputs[0])!,index);
             const active=id===this.active&&Number.isFinite(x)&&Number.isFinite(y);
             plot.update(x,y,active,this.nodes.length<=12);
-            if(assembly&&!operators.has(id))plot.group.visible=false;
             if(active)this.sampleState={input:x,output:y,index};
         }
         }
         const shown:T.Box2[]=[];
         this.root.updateMatrixWorld(true);
-        const selectedAssembly=this.selected?this.assemblyByNode.get(this.selected):undefined;
-        const showAssemblyCards=!!selectedAssembly&&assembly?.id===selectedAssembly.id;
-        const cardCandidates=[...this.cards].sort((a,b)=>Number(b.id===this.hoveredTensor)-Number(a.id===this.hoveredTensor)||Number(b.owner===chosen)-Number(a.owner===chosen)||b.priority-a.priority);
+        const chosen=this.hovered??this.selected;
+        const cardCandidates=[...this.cards].sort((a,b)=>Number(b.owner===chosen)-Number(a.owner===chosen)||b.priority-a.priority);
         const owners=new Set<string>();
         const viewport=new T.Box2(new T.Vector2(-1,-1),new T.Vector2(1,1));
         const cameraOrientation=this.camera.getWorldQuaternion(new T.Quaternion());
         for(const card of cardCandidates){
-            const member=members.has(card.id);
-            const wanted=this.labelMode==='all'||this.labelMode==='auto'&&(showAssemblyCards?member:chosen?card.owner===chosen:card.priority>0);
+            const wanted=this.labelMode==='all'||this.labelMode==='auto'&&(chosen?card.owner===chosen:card.priority>0);
             card.group.visible=false;
             if(!wanted)continue;
             const mesh=card.group.children[0] as T.Mesh;mesh.geometry.computeBoundingBox();const b=mesh.geometry.boundingBox!;
@@ -1010,16 +892,15 @@ export class SiliconDevineViewer {
             // rejects them against the model's overly broad projected bounding boxes.
             const owner=card.owner??card.id;
             const inView=projected.every(p=>p.z>=-1&&p.z<=1)&&rect.intersectsBox(viewport);
-            card.group.visible=this.labelMode==='all'||showAssemblyCards&&member||inView&&!owners.has(owner)&&shown.length<(chosen?1:this.structureMotion?6:4)&&!shown.some(r=>r.intersectsBox(rect));
+            card.group.visible=this.labelMode==='all'||inView&&!owners.has(owner)&&shown.length<(chosen?1:this.structureMotion?6:4)&&!shown.some(r=>r.intersectsBox(rect));
             if(card.group.visible)shown.push(rect);
             if(card.group.visible)owners.add(owner);
-            (mesh.material as T.MeshBasicMaterial).opacity=member?1:assembly?.3:.9;
+            (mesh.material as T.MeshBasicMaterial).opacity=card.owner===chosen?1:.9;
         }
         for(const [id,outline] of this.planeOutlines){
-            const p=this.planes.get(id)!,highlight=members.has(id);
-            const m=outline.material as T.LineBasicMaterial;m.opacity=highlight?.95:assembly?.13:.48;
-            m.color.set(highlight?assembly!.color:p.tensor.role==='parameter'?'#bc986c':'#65b4c7');
-            (this.planePlates.get(id)!.material as T.MeshBasicMaterial).opacity=highlight?.2:assembly?.035:.1;
+            const p=this.planes.get(id)!,highlight=!!chosen&&p.owner===chosen;
+            const m=outline.material as T.LineBasicMaterial;m.opacity=highlight?.95:.48;
+            m.color.set(highlight?'#effaff':p.tensor.role==='parameter'?'#bc986c':'#65b4c7');
         }
         this.renderer.render(this.scene, this.camera);
         if (this.clock > .25 || !this.playing) {
@@ -1042,7 +923,6 @@ export class SiliconDevineViewer {
         c.removeEventListener('pointerleave', this.onLeave);
         c.removeEventListener('pointerdown', this.onDown);
         c.removeEventListener('pointerup', this.onUp);
-        c.removeEventListener('pointercancel', this.onCancel);
         c.removeEventListener('webglcontextlost', this.onLost);
         c.removeEventListener('webglcontextrestored', this.onRestored);
         this.controls.removeEventListener('change', this.onControlsChange);
