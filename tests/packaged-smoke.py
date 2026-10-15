@@ -10,6 +10,7 @@ import time
 p=argparse.ArgumentParser()
 p.add_argument('executable',type=Path)
 p.add_argument('--preset',default='MLP')
+p.add_argument('--source',type=Path)
 args=p.parse_args()
 exe=args.executable.resolve()
 report=Path(__file__).resolve().parents[1]/'.qa'/('packaged-'+str(time.time_ns())+'.json')
@@ -18,7 +19,9 @@ env=dict(os.environ)
 env.pop('PYTHONPATH',None)
 env.pop('PYTHONHOME',None)
 with tempfile.TemporaryDirectory(prefix='sd-exe-cwd-') as directory:
-    result=subprocess.run([str(exe),'--self-test',str(report),'--preset',args.preset],
+    command=[str(exe),'--self-test',str(report),'--preset',args.preset]
+    if args.source:command += ['--source',str(args.source.resolve())]
+    result=subprocess.run(command,
                           cwd=directory,env=env,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0),timeout=190)
 data=json.loads(report.read_text(encoding='utf-8'))
 assert result.returncode==0 and data['ok'],data

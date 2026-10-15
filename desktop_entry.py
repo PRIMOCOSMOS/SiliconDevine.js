@@ -11,7 +11,7 @@ from urllib.request import urlopen
 import app as launcher
 
 
-def diagnose(destination, python=None, preset='MLP'):
+def diagnose(destination, python=None, preset='MLP', source=None):
     result = {'frozen':bool(getattr(sys,'frozen',False)), 'root':str(launcher.ROOT), 'ok':False}
     app = None
     window = None
@@ -29,6 +29,10 @@ def diagnose(destination, python=None, preset='MLP'):
             app.preset.set(preset)
             app.preset.event_generate('<<ComboboxSelected>>')
             window.update()
+            if source:
+                app.file.set(str(source))
+                app.factory.set('auto')
+                app.backend.set('auto')
             app.start()
             process=app.process
             assert process is not None,'No model process'
@@ -41,7 +45,7 @@ def diagnose(destination, python=None, preset='MLP'):
                 data=json.load(response)
             with urlopen(app.url,timeout=10) as response:
                 assert b'<html' in response.read().lower()
-            result.update(model=data['model']['name'],nodes=len(data['model']['nodes']),browserHandoff=opened==[app.url],settingsSaved=launcher.CONFIG.exists(),provenance=data['model'].get('provenance'))
+            result.update(model=data['model']['name'],nodes=len(data['model']['nodes']),browserHandoff=opened==[app.url],settingsSaved=launcher.CONFIG.exists(),provenance=data['model'].get('provenance'),discovery=data['model'].get('discovery'))
             assert result['browserHandoff'] and result['settingsSaved']
             app.stop()
             assert process.poll() is not None and app.process is None
@@ -60,11 +64,12 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description='SiliconDevine desktop launcher')
     parser.add_argument('--self-test',type=Path,help='Write a local startup diagnostic report and exit')
     parser.add_argument('--python',help='Python interpreter for the diagnostic')
+    parser.add_argument('--source',type=Path,help='自动导入目录或文件的启动诊断')
     parser.add_argument('--preset',default='MLP',choices=['MLP','TinyGPT','LLaMA · Transformers','SAB · 作者实现','ISAB · 作者实现','VAE · PyTorch 官方','卷积 VAE','条件 VAE','DeepSeek-V3','GLM-4.5','MiniMax-M1','动态卷积核','条件注意力'])
     args=parser.parse_args()
     launcher.enable_high_dpi()
     if args.self_test:
-        raise SystemExit(diagnose(args.self_test,args.python,args.preset))
+        raise SystemExit(diagnose(args.self_test,args.python,args.preset,args.source))
     window=tk.Tk()
     application=launcher.Application(window)
     window.mainloop()

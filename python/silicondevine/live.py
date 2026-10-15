@@ -6,6 +6,7 @@ import tempfile
 import threading
 import time
 import uuid
+import secrets
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -33,7 +34,7 @@ class Snapshot:
 
 class LiveServer:
     """Atomic snapshots: failed recaptures never destroy the last usable graph."""
-    def __init__(self, port=5182, static_dir=None):
+    def __init__(self, port=5182, static_dir=None, settings_path=None):
         self.static_dir = Path(static_dir) if static_dir else Path(__file__).resolve().parents[2] / 'demo-dist'
         self.lock = threading.RLock()
         self.graph = None
@@ -41,6 +42,11 @@ class LiveServer:
         self.revision = 0
         self.loading = False
         self.error = None
+        self.issue = None
+        self.import_options = None
+        self.settings_path = Path(settings_path) if settings_path else None
+        self.control_token = secrets.token_urlsafe(32) if settings_path else None
+        self.retry_revision = 0
         self.closed = False
         server_state = self
 
@@ -71,6 +77,39 @@ class LiveServer:
                 except (BrokenPipeError, ConnectionResetError):
                     pass
 
+            def same_origin(self):
+                origin = self.headers.get('Origin')
+                return not origin or origin == 'http://' + self.headers.get('Host', '')
+
+            def do_POST(self):
+                host = urlparse('http://' + self.headers.get('Host', '')).hostname
+                if (host not in ('localhost','127.0.0.1','::1') or not self.same_origin()
+                    or not server_state.control_token or not secrets.compare_digest(self.headers.get('X-SiliconDevine-Token',''),server_state.control_token)):
+                    return self.reply({'error':'请从当前工作台提交导入设置。'},403)
+                route = urlparse(self.path).path
+                if route not in ('/api/import-settings','/api/retry'):
+                    return self.reply({'error':'Unknown API.'},404)
+                try:
+                    size=int(self.headers.get('Content-Length','0'))
+                    if not 0 < size <= 1024*1024 or self.headers.get_content_type()!='application/json':
+                        raise ValueError('表单内容无效或过大。')
+                    value=json.loads(self.rfile.read(size).decode('utf-8'))
+                    with server_state.lock:
+                        if route == '/api/import-settings':
+                            from .assistance import validate_settings
+                            value=validate_settings(value)
+                            path=server_state.settings_path
+                            path.parent.mkdir(parents=True,exist_ok=True)
+                            temporary=path.with_name(path.name+'.pending')
+                            temporary.write_text(json.dumps(value,ensure_ascii=False,allow_nan=False),encoding='utf-8')
+                            os.replace(temporary,path)
+                        server_state.retry_revision += 1
+                        server_state.loading=True
+                        server_state.error=server_state.issue=None
+                    return self.reply({'accepted':True})
+                except (ValueError,OSError,UnicodeError) as exc:
+                    return self.reply({'error':str(exc)},400)
+
             def do_GET(self):
                 host = urlparse('http://' + self.headers.get('Host', '')).hostname
                 origin = self.headers.get('Origin')
@@ -80,7 +119,9 @@ class LiveServer:
                 with server_state.lock:
                     if route.path == '/api/status':
                         return self.reply({'revision': server_state.revision, 'ready': server_state.graph is not None,
-                                           'loading': server_state.loading, 'error': server_state.error})
+                                           'loading': server_state.loading, 'error': server_state.error,
+                                           'issue':server_state.issue, 'importOptions':server_state.import_options,
+                                           'controlToken':server_state.control_token if self.same_origin() else None})
                     if route.path == '/api/model':
                         if server_state.graph is None:
                             return self.reply({'error': server_state.error or 'Waiting for the model.'}, 503)
@@ -124,10 +165,11 @@ class LiveServer:
 
     def publish(self, graph, snapshot=None):
         with self.lock:
-            graph['live'] = {'tensorWindows': bool(snapshot), 'available': list(snapshot.manifest) if snapshot else []}
+            graph['live'] = {'tensorWindows': bool(snapshot and snapshot.manifest), 'available': list(snapshot.manifest) if snapshot else []}
             self.graph, self.snapshot = graph, snapshot
             self.revision += 1
-            self.error, self.loading = None, False
+            self.error, self.issue, self.loading = None, None, False
+            self.import_options = graph.get('discovery',{}).get('importOptions')
 
     def update(self, model, args, **options):
         directory = tempfile.mkdtemp(prefix='silicondevine-snapshot-')

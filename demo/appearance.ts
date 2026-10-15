@@ -40,6 +40,7 @@ export function installAppearance() {
  function revealStage(){catalogOpen=false;sync();modelEntrance(document.querySelector('#stage') as HTMLElement);}
  catalog.onclick=()=>{catalogOpen=!catalogOpen;presentation.setAttribute('aria-pressed','false');sync();if(catalogOpen&&!reduced.matches&&document.body.dataset.effects==='full')aside.animate([{opacity:.55,clipPath:'inset(0 0 5% 0)'},{opacity:1,clipPath:'inset(0 0 0% 0)'}],{duration:620,easing:'cubic-bezier(.16,1,.3,1)'});};
  inspect.onclick=()=>{catalogOpen=false;presentation.setAttribute('aria-pressed','false');inspectorOpen=!inspectorOpen;sync();};
+ document.addEventListener('silicondevine:inspect',()=>{catalogOpen=false;presentation.setAttribute('aria-pressed','false');inspectorOpen=true;sync();});
  document.querySelector<HTMLButtonElement>('#inspector-close')!.onclick=()=>{inspectorOpen=false;sync();inspect.focus();};document.querySelector<HTMLButtonElement>('#library-return')!.onclick=revealStage;
  presentation.onclick=()=>{catalogOpen=false;presentation.setAttribute('aria-pressed',String(presentation.getAttribute('aria-pressed')!=='true'));sync();};document.addEventListener('keydown',e=>{if(e.key==='Escape'){catalogOpen=false;inspectorOpen=false;presentation.setAttribute('aria-pressed','false');sync();}});
  libraryFamilies.querySelectorAll<HTMLButtonElement>('[data-model]').forEach(button=>button.onclick=()=>{const select=document.querySelector<HTMLSelectElement>('#example')!;select.value=button.dataset.model!;select.dispatchEvent(new Event('change',{bubbles:true}));revealStage();});

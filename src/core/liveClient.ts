@@ -4,6 +4,23 @@ export interface LiveStatus {
     ready: boolean;
     loading: boolean;
     error: string | null;
+    issue?: ImportIssue | null;
+    importOptions?: ImportSchema | null;
+    controlToken?: string | null;
+}
+export interface ImportField {
+    name: string; kind: string; required?: boolean; enabled?: boolean; value?: unknown;
+    annotation?: string; class?: string; choices?: unknown[]; children?: ImportField[]; parameterKind?: string;
+}
+export interface ImportSchema {
+    entry?: string; label?: string; settings: Record<string, unknown>;
+    candidates: {id:string;name:string;file:string;line:number}[];
+    constructor: ImportField[]; inputs: ImportField[]; hasForward?: boolean;
+}
+export interface ImportIssue {
+    code: string; title: string; message: string; detail?: string; file?: string; line?: number;
+    module?: string; package?: string; requirements?: string[]; schema?: ImportSchema | null;
+    fields?: string[];
 }
 /** Read-only loopback bridge. Only the user's Python process executes model code. */
 export class LiveConnection {
@@ -13,6 +30,7 @@ export class LiveConnection {
     private revision = -1;
     private generation = 0;
     private base: string;
+    private token?: string | null;
     constructor(url: string, private callbacks: {
         onModel: (model: Model) => void;
         onStatus?: (status: LiveStatus) => void;
@@ -35,6 +53,7 @@ export class LiveConnection {
             const status = await response.json() as LiveStatus;
             if (generation !== this.generation)
                 return;
+            this.token=status.controlToken;
             this.callbacks.onStatus?.(status);
             if (status.ready && status.revision !== this.revision) {
                 const r = await fetch(this.base + '/api/model', { signal: this.controller.signal, cache: 'no-store' });
@@ -65,6 +84,14 @@ export class LiveConnection {
         if (result.revision !== this.revision || revision !== this.revision)
             throw Error('模型已更新，请重新读取窗口。');
         return result.values;
+    }
+    async configure(settings?: Record<string, unknown>): Promise<void> {
+        if(!this.token) throw Error('请在启动器打开的本地工作台中修改导入设置。');
+        const response=await fetch(this.base+(settings?'/api/import-settings':'/api/retry'),{
+            method:'POST',headers:{'Content-Type':'application/json','X-SiliconDevine-Token':this.token},body:JSON.stringify(settings??{})
+        });
+        const result=await response.json();
+        if(!response.ok)throw Error(result.error??'导入设置未保存，请重试。');
     }
     stop() {
         this.running = false;

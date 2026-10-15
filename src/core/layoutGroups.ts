@@ -2,7 +2,9 @@ import { type Model, type Operation } from './model.js';
 import { contract, coordinatePurpose } from './semanticGroups.js';
 /** Directed, single-consumer chains cannot swallow a parallel Q/K/V branch. */
 export function groupCoordinateChanges(model: Model, original: Operation[]): Operation[] {
-    const coordinate = new Set(['reshape','flatten','transpose','permute','identity','chunk','split','concat','expand']);
+    // Concatenating feature sources or separating learned channels is a model
+    // operation; never bury it under a generic layout label.
+    const coordinate = new Set(['reshape','flatten','transpose','permute','identity','expand']);
     let nodes = original;
     const visited = new Set<string>();
     for (const first of original) {
@@ -11,7 +13,9 @@ export function groupCoordinateChanges(model: Model, original: Operation[]): Ope
         let tail = first;
         while (true) {
             const next = original.filter(n => n.inputs.some(id => tail.outputs.includes(id)));
-            if (next.length !== 1 || !coordinate.has(next[0].op) || visited.has(next[0].id) || next[0].group !== first.group) break;
+            const a=(first.attrs?.designSourceStack as {file:string;function:string;call:number}[]|undefined)?.at(-1),b=(next[0]?.attrs?.designSourceStack as {file:string;function:string;call:number}[]|undefined)?.at(-1);
+            const sameContext=!!a&&!!b&&a.file===b.file&&a.function===b.function&&a.call===b.call;
+            if (next.length !== 1 || !coordinate.has(next[0].op) || visited.has(next[0].id) || (next[0].group !== first.group&&!sameContext)) break;
             children.push(next[0]); visited.add(next[0].id); tail = next[0];
         }
         const made = new Set(children.flatMap(n=>n.outputs)), inputs = children.flatMap(n=>n.inputs).filter(t=>!made.has(t));

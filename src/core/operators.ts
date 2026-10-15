@@ -21,8 +21,54 @@ export interface OperatorVisual {
     curve?: (x: number, attrs: Record<string, unknown>) => number;
 }
 const registry = new Map<string, OperatorVisual>();
-export function registerOperator(name: string, visual: OperatorVisual) { registry.set(name, visual); }
+export function registerOperator(name: string, visual: OperatorVisual) {
+    const dependency=visual.dependencies;
+    registry.set(name,{...visual,dependencies:(n,out,i,t)=>n.attrs?.presentationChildren?
+        composedDependencies(n,out,i,t):dependency(n,out,i,t)});
+}
+
+function composedDependencies(node:Operation,out:Tensor,index:number,tensors:Map<string,Tensor>):Dependency[]{
+    const children=node.attrs?.presentationChildren as Operation[],
+        producer=new Map(children.flatMap(n=>n.outputs.map(t=>[t,n] as const))),memo=new Map<string,Dependency[]>();
+    function trace(id:string,i:number,depth=0):Dependency[]{
+        const key=id+':'+i;if(memo.has(key))return memo.get(key)!;
+        const n=producer.get(id),t=tensors.get(id);
+        if(!n||!t||depth>children.length)return [{tensor:id,index:i}];
+        const result:Dependency[]=[];
+        for(const d of operatorVisual(n.op).dependencies(n,t,i,tensors))for(const leaf of trace(d.tensor,d.index,depth+1))
+            result.push({...leaf,...(d.weight!==undefined?{weight:d.weight*(leaf.weight??1)}:{}),
+                ...(d.parameter?{parameter:d.parameter,parameterIndex:d.parameterIndex}:{})});
+        memo.set(key,result);return result;
+    }
+    return trace(out.id,index);
+}
 const boundary: OperatorVisual = { label: '自定义算子', color: '#96a3be', formula: '输入 → 已捕获的输出', detail: 'boundary', dependencies: () => [] };
+registerOperator('symbolic', {label:'结构预览 · 尺寸待定',color:'#b5c1cb',formula:'已知源码结构；数值与完整形状尚未确定',detail:'boundary',dependencies:()=>[]});
+registerOperator('module', {label:'源码模块组合',color:'#77cfc7',formula:'展开查看实际基础算子、参数与张量',detail:'boundary',dependencies:()=>[]});
+registerOperator('gaussian_noise',{label:'高斯噪声 ε',color:'#c6b4ff',formula:'ε ∼ N(mean, std²) · 本次实际抽样',detail:'exact',dependencies:()=>[]});
+registerOperator('constant',{label:'常量',color:'#adbed1',formula:'固定数值 · 无可学习参数',detail:'exact',dependencies:()=>[]});
+registerOperator('ne',{label:'不等比较',color:'#adbed1',formula:'y = (x ≠ other) · 按广播坐标比较',detail:'exact',dependencies:(n,out,i,t)=>n.inputs.flatMap(id=>{
+    const x=t.get(id);if(!x)return [];
+    const c=x.shape.length?coordinates(i,out.shape as number[]).slice(-x.shape.length).map((v,j)=>x.shape[j]===1?0:v):[];
+    return [{tensor:id,index:flatIndex(c,x.shape as number[])}];
+})});
+registerOperator('broadcast_tensors',{label:'分布参数形状对齐',color:'#84bce6',formula:'广播 μ 与 σ · 共享值，无新增权重',detail:'exact',dependencies:(n,out,i,t)=>{
+    const slot=n.outputs.indexOf(out.id),x=t.get(n.inputs[slot]);if(!x)return [];
+    const c=x.shape.length?coordinates(i,out.shape as number[]).slice(-x.shape.length).map((v,j)=>x.shape[j]===1?0:v):[];
+    return [{tensor:x.id,index:flatIndex(c,x.shape as number[])}];
+}});
+registerOperator('weightnorm',{label:'权重归一化',color:'#d9b888',formula:'W = g · v / ‖v‖ · 按输出通道归一化',detail:'exact',dependencies:(n,out,i,t)=>{
+    const v=t.get(n.inputs[0]),g=t.get(n.inputs[1]);if(!v||!g)return [];
+    const shape=v.shape as number[],dim=Number(n.attrs?.dim??0),co=coordinates(i,shape),count=shape.reduce((a,b)=>a*b,1);
+    const deps=[{tensor:g.id,index:dim<0||g.shape.reduce((a,b)=>Number(a)*Number(b),1)===1?0:co[dim]}];
+    const stride=dim<0?1:shape.slice(dim+1).reduce((a,b)=>a*b,1),size=dim<0?count:count/shape[dim];
+    for(let j=0;j<size;j++)deps.push({tensor:v.id,index:dim<0?j:Math.floor(j/stride)*shape[dim]*stride+co[dim]*stride+j%stride});
+    return deps;
+}});
+for(const [op,label,formula,curve] of [
+    ['log','自然对数','y = ln(x)',Math.log],
+    ['reciprocal','倒数变换','y = 1/x',(x:number)=>1/x],
+] as const) registerOperator(op,{label,color:'#b6a0e6',formula,curve,detail:'exact',dependencies:(n,_,i)=>[{tensor:n.inputs[0],index:i}]});
 export const operatorVisual = (op: string) => registry.get(op) ?? boundary;
 const pair = (n: Operation, t: Map<string, Tensor>) => [t.get(n.inputs[0])!, t.get(n.parameters?.weight ?? '')!] as const;
 registerOperator('linear', { label: '全连接', color: '#68e6d2', formula: 'y = Wx + b', detail: 'exact', dependencies: (n, out, index, t) => {
@@ -154,7 +200,7 @@ registerOperator('semantic', { label: '功能组合', color: '#b6a0e6', formula:
         const n=producer.get(id), t=tensors.get(id);
         if(!n || !t || depth>children.length) return [{tensor:id,index:i}];
         const unique=new Map<string,Dependency>();
-        for(const d of operatorVisual(n.op).dependencies(n,t,i,tensors)) for(const leaf of trace(d.tensor,d.index,depth+1)) unique.set(leaf.tensor+':'+leaf.index,{tensor:leaf.tensor,index:leaf.index});
+        for(const d of operatorVisual(n.op).dependencies(n,t,i,tensors)) for(const leaf of trace(d.tensor,d.index,depth+1)) unique.set(leaf.tensor+':'+leaf.index,node.attrs?.designKind==='projection'?{...leaf,...(d.parameter?{parameter:d.parameter,parameterIndex:d.parameterIndex,weight:d.weight}:{})}:{tensor:leaf.tensor,index:leaf.index});
         const result=[...unique.values()];memo.set(key,result);return result;
     };
     return trace(out.id,index);
@@ -169,7 +215,16 @@ for(const [kind,label,formula] of [
     ['masked_fill','掩码填充','y = mask ? c : x'],['one_hot','专家分配掩码','y_{i,e} = [index_i=e]'],
     ['nonzero','选中 Token 坐标','i = nonzero(mask)'],['unbind','分离坐标轴','y_j = x.select(dim,j)'],
     ['constant','常量初始化','y = constant'],
-])registerOperator('routing_'+kind,{label,color:'#c3a2e0',formula,detail:'exact',dependencies:(node,out,index)=>{
+])registerOperator('routing_'+kind,{label,color:'#c3a2e0',formula,detail:'exact',dependencies:(node,out,index,tensors)=>{
     const maps=node.attrs?.coordinateDependencies as Dependency[][][]|undefined;
+    if(node.attrs?.analyticCoordinates&&kind==='not')return [{tensor:node.inputs[0],index}];
+    if(node.attrs?.analyticCoordinates&&kind==='masked_fill'){
+        const mask=tensors.get(node.inputs[1]);if(!mask)return [];
+        const co=(mask.shape.length?coordinates(index,out.shape as number[]).slice(-mask.shape.length):[])
+            .map((c,i)=>mask.shape[i]===1?0:c),mi=flatIndex(co,mask.shape as number[]),v=valueAt(mask,mi);
+        if(!Number.isFinite(v))return []; // Missing values remain unknown.
+        return v?node.attrs?.fillConstant?[{tensor:String(node.attrs.fillConstant),index:0,weight:1}]:[]:
+            [{tensor:node.inputs[0],index,weight:1}];
+    }
     return maps?.[node.outputs.indexOf(out.id)]?.[index]??[];
 }});

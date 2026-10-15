@@ -1,5 +1,6 @@
 import { coordinates, flatIndex, numel, topologicalNodes, type Model, type Tensor } from './model.js';
 import {modelAssemblies} from './assemblies.js';
+import {orbitalLayout} from './orbitalLayout.js';
 export type Vec3 = [
     number,
     number,
@@ -93,6 +94,14 @@ export function tensorWindow(t: Tensor, limit = 128, requestedOrigin: number[] =
 export function layoutModel(model: Model, cellLimit = 128, origins = new Map<string, number[]>()): Map<string, TensorPlane> {
     const planes = new Map(model.tensors.map(t => [t.id, tensorWindow(t, cellLimit, origins.get(t.id))])), levels = new Map<string, number>();
     const ordered=topologicalNodes(model), attention=ordered.some(n=>n.attrs?.attentionRole), lanes=new Map<string,number>();
+    const composed=ordered.some(n=>n.attrs?.composition);
+    if(composed)for(const p of planes.values()){
+        // Coordinate-faithful thumbnail windows at the architecture level.
+        // This changes only geometric scale; indices and captured values survive.
+        const scale=Math.min(1,4/Math.max(p.width,p.depth));
+        p.positions=p.positions.map(v=>v.map(x=>x*scale) as Vec3);
+        p.width*=scale;p.height*=scale;p.depth*=scale;
+    }
     // A scoped graph also lists buffers/constants as boundary inputs. They belong
     // to the consuming operator, not to the data-input plane at the top.
     model.inputs.filter(id=>['input','activation'].includes(planes.get(id)?.tensor.role??'')).forEach(id => levels.set(id, 0));
@@ -139,6 +148,19 @@ export function layoutModel(model: Model, cellLimit = 128, origins = new Map<str
             p.center = [x + w / 2, y, 0];
             x += w + 1.2;
         }
+        if(composed){
+            // A functional unit may expose several scales / KL outputs. Keep
+            // its ports together, rather than stretching them across the scene.
+            const packets=new Map<string,TensorPlane[]>();
+            for(const p of row){const key=p.owner??p.tensor.id;packets.set(key,[...packets.get(key)??[],p]);}
+            const groups=[...packets.values()], widths=groups.map(ps=>Math.max(...ps.map(footprint))*Math.min(3,ps.length)+Math.min(2,ps.length-1)*.8);
+            let px=-(widths.reduce((a,b)=>a+b+2,0)-2)/2;
+            for(let i=0;i<groups.length;i++){
+                const ps=groups[i],cols=Math.min(3,ps.length),w=Math.max(...ps.map(footprint)),d=Math.max(...ps.map(p=>p.depth)),rows=Math.ceil(ps.length/cols);
+                ps.forEach((p,j)=>{p.center=[px+(j%cols)*(w+.8)+w/2,y,(Math.floor(j/cols)-(rows-1)/2)*(d+.8)];});
+                px+=widths[i]+2;
+            }
+        }
         // Stable Q/K/V lanes converge on a single vertical attention/output trunk.
         if(attention) {
             const byLane=new Map<number,TensorPlane[]>();
@@ -160,7 +182,8 @@ export function layoutModel(model: Model, cellLimit = 128, origins = new Map<str
             }
             return Object.keys(n?.parameters??{}).length?2*(Math.max(front,back)*.45+height+.55):0;
         });
-        y -= Math.max(model.architecture?6.2:attention?2.15:4.1, ...bankGap, ...row.map(p => p.height + (attention?1.8:3.4)));
+        const packetDepth=composed?Math.max(0,...row.map(p=>Math.abs(p.center[2])+p.depth/2))*.65+2:0;
+        y -= Math.max(packetDepth,model.architecture?6.2:attention?2.15:4.1, ...bankGap, ...row.map(p => p.height + (attention?1.8:3.4)));
     }
     // A scalar/elementwise operation is one work surface. Its operands are arranged
     // around the output on that plane; convolution and learned projections retain depth.
@@ -206,6 +229,7 @@ export function layoutModel(model: Model, cellLimit = 128, origins = new Map<str
     // Reserve actual 3D footprints, including parameters, buffers and operand
     // work surfaces. Resolve within the same horizontal level to keep the trunk.
     // Widen Z only when footprints really intersect; never displace the main data.
+    if(composed)orbitalLayout(model,planes);
     const packed:TensorPlane[]=[];
     const order=[...planes.values()].sort((a,b)=>Number(['parameter','buffer','constant'].includes(a.tensor.role))-Number(['parameter','buffer','constant'].includes(b.tensor.role)));
     for(const p of order){

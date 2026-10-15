@@ -5,6 +5,28 @@ import os
 from pathlib import Path
 import shutil
 import sys
+import re
+
+
+def startup_issue(log, interpreter):
+    """Decode startup failures even when PyTorch cannot import and no server exists."""
+    missing=re.findall(r"ModuleNotFoundError: No module named ['\"]([^'\"]+)",log)
+    if missing:
+        name=missing[-1];top=name.split('.')[0]
+        packages={'torch':'torch','numpy':'numpy','einops':'einops','yaml':'PyYAML','PIL':'Pillow','transformers':'transformers'}
+        return {'code':'dependency_missing','title':'缺少依赖 · '+top,'module':name,'package':packages.get(top),
+                'message':f'当前环境找不到 {name}。请选择项目原有的 Python 环境，或按项目依赖清单安装后重试。'}
+    if 'DLL load failed' in log or 'WinError 126' in log or 'WinError 127' in log:
+        return {'code':'environment_broken','title':'Python 依赖未能加载','message':'依赖已找到，但运行库或 DLL 无法加载。请切换到能正常运行该模型的 Python 环境；详细原因保留在运行日志中。'}
+    return {'code':'service_exited','title':'模型服务已退出','message':'服务未能继续运行。请查看运行日志中的最后一条错误；修改代码或更换环境后重试。'}
+
+
+def install_command(issue, interpreter):
+    def quote(value): return "'"+str(value).replace("'","''")+"'"
+    base='& '+quote(interpreter)+' -m pip install '
+    if issue.get('requirements'):return base+'-r '+quote(issue['requirements'][0])
+    if issue.get('package'):return base+quote(issue['package'])
+    return ''
 
 
 def application_root():

@@ -30,10 +30,12 @@ class ExporterTests(unittest.TestCase):
     def test_tuple_and_unknown_operation(self):
         class Custom(nn.Module):
             def forward(self,x):
-                return {'a':torch.log(x), 'b':x+1}
+                return {'a':torch.log(x), 'b':x+1, 'c':torch.digamma(x)}
         out=export_model(Custom(),torch.ones(2,3),include_values=True)
-        self.assertEqual(len(out['outputs']),2)
+        self.assertEqual(len(out['outputs']),3)
+        self.assertTrue(any(n['op']=='log' for n in out['nodes']))
         self.assertTrue(any(n['op']=='opaque' for n in out['nodes']))
+        self.assertTrue(any('digamma' in n['source'] for n in out['nodes'] if n['op']=='opaque'))
     def test_control_flow_fails_explicitly(self):
         class Dynamic(nn.Module):
             def forward(self,x):

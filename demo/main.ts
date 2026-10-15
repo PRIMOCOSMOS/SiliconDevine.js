@@ -3,6 +3,8 @@ import { SiliconDevineViewer, LiveConnection, defineModel, compileDescription, v
 import '@fontsource-variable/tektur';
 import './style.css';
 import { installAppearance, modelEntrance } from './appearance';
+import {installInputContract} from './inputContract';
+import {installImportAssistant} from './importAssistant';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 document.querySelector('#app')!.innerHTML = `
@@ -21,14 +23,16 @@ python -m silicondevine.watch model.py</pre></details></section><section id="par
   .linear('output', 4)
   .build()</pre><p class="muted">任意分支可通过 operation() 或标准图 JSON 接入。浏览器不执行 Python。</p></details></aside>
 <div class="workspace"><div class="toolbar"><div><strong id="model-name">全连接网络</strong><span id="active">等待模型</span></div><div class="controls"><button id="play">暂停</button><button id="fit">总览</button><button id="zoom-in" aria-label="放大">＋</button><button id="zoom-out" aria-label="缩小">−</button><label class="sr" for="labels">全息标牌显示</label><select id="labels"><option value="auto">按需标牌</option><option value="all">全部标牌</option><option value="none">隐藏标牌</option></select><label class="sr" for="speed">演示速度</label><select id="speed"><option value="0.5">0.5× 速度</option><option value="1" selected>1× 速度</option><option value="2">2× 速度</option></select><button id="fullscreen">全屏</button></div></div>
-<div class="navigation"><button id="parent-module">上一级</button><span id="scope-label">完整模型</span><label for="representation">显示层级</label><select id="representation"><option value="architecture">功能架构</option><option value="operators">算子细节</option></select></div><div id="stage" tabindex="0"></div><div class="status"><span id="stats"></span><span id="computation"></span><div><button id="prev">上一图段</button><button id="next">下一图段</button></div></div>
+<div class="navigation"><button id="parent-module">上一级</button><span id="scope-label">完整模型</span><label for="representation">显示层级</label><select id="representation"><option value="architecture">功能架构</option><option value="operators">数学结构</option><option value="raw">底层调用 · 调试</option></select></div><div id="stage" tabindex="0"></div><div class="status"><span id="stats"></span><span id="computation"></span><div><button id="prev">上一图段</button><button id="next">下一图段</button></div></div>
 <div class="timeline"><label for="progress">单步计算进度</label><input id="progress" type="range" min="0" max="100" value="0"><span>拖动暂停并定位</span></div><div class="legend" aria-label="数值颜色图例"><span><i style="--c:#ffc47e"></i>负值</span><span><i style="--c:#879bae"></i>零</span><span><i style="--c:#68e6d2"></i>正值</span><span><i style="--c:#effaff"></i>当前计算</span><span><i style="--c:#4b6574"></i>未知数值</span><span>× 屏蔽值 −∞</span><small>按张量归一化 · 对称 asinh</small></div>
 <section class="inspector"><div><h2 id="detail-title">完整权重连接，逐次计算</h2><p id="detail">晶体代表具有明确坐标的张量元素。权重线保持可见，动效沿计算过程平滑流动。复杂图只激活当前区域；点击聚焦，拖动旋转。</p></div><div><code id="formula">y = Wx + b</code><p id="shape"></p><p id="support" class="muted"></p></div></section>
 <div id="error" role="alert" hidden></div></div></main>`;
 installAppearance();
+const renderInputs=installInputContract();
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 let model: Model, pageStart = 0, request = 0;
 let live: LiveConnection | undefined;
+const updateImportAssistant=installImportAssistant(()=>live);
 let liveUpdating = false;
 let navigationSignature = '';
 const stage = el('stage');
@@ -37,6 +41,15 @@ const stageChoice=document.createElement('select');stageChoice.id='computation-s
 const tourButton=document.createElement('button');tourButton.id='computation-tour';tourButton.hidden=true;document.querySelector('.navigation')!.append(tourButton);tourButton.onclick=()=>{viewer.setTour(!viewer.isTouring);syncNavigation();};
 const badge=document.createElement('div');badge.id='structure-badge';badge.hidden=true;badge.setAttribute('role','status');document.querySelector('.toolbar>div:first-child')!.append(badge);
 function detail(n?: Operation) {
+    const scopeUnit=model?.composition?.units.find(u=>u.id===viewer.getNavigation().scope);
+    if(!n&&scopeUnit?.visual?.description){
+        el('detail-title').textContent=scopeUnit.name;
+        el('detail').textContent=String(scopeUnit.visual.description);
+        el('formula').innerHTML=scopeUnit.visual.formula?katex.renderToString(String(scopeUnit.visual.formula),{throwOnError:false}):'';
+        el('shape').textContent=String(scopeUnit.visual.summary??'');
+        el('support').textContent='来自原始 PyTorch 执行路径；张量数值与参数共享关系保持不变。';
+        return;
+    }
     if(viewer.isMechanism){const current=viewer.getDisplayedModel()!;el('detail-title').textContent=n?.name??current.name;el('formula').innerHTML=n?.attrs?.formula?katex.renderToString(String(n.attrs.formula),{throwOnError:false}):n?operatorVisual(n.op).formula:'';el('detail').textContent=String(n?.attrs?.description??(current.notes??[]).join(' '));el('shape').textContent=(n?current.tensors.filter(t=>[...n.inputs,...n.outputs].includes(t.id)):current.tensors.filter(t=>current.inputs.includes(t.id))).map(t=>`${t.semantic??t.id} [${t.shape.join(' × ')}]`).join(' → ');el('support').textContent=String(current.provenance?.source??'');return;}
     if(model?.architecture){
         const current=viewer.getDisplayedModel()!,a=model.architecture;
@@ -48,6 +61,11 @@ function detail(n?: Operation) {
         return;
     }
     if (!n) {
+        if(viewer.getNavigation().scope&&!viewer.getNavigation().nodes.length){
+            el('detail-title').textContent=viewer.getNavigation().scopeName??'执行准备';
+            el('detail').textContent='本范围只有输入准备或执行校验，默认视图已收起。相关约束归入使用这些数据的数学模块；底层调用保留完整实现。';
+            el('formula').textContent='';el('shape').textContent='';el('support').textContent='';return;
+        }
         el('detail-title').textContent = viewer.getNavigation().scope || '整体计算图';
         el('formula').textContent = '';
         el('shape').textContent = model.inputs.join(' / ') + ' → ' + model.outputs.join(' / ');
@@ -55,7 +73,7 @@ function detail(n?: Operation) {
         el('detail').textContent = '水晶块保留真实坐标；参数与计算主干对齐。拖动旋转，滚轮缩放；悬停连续区域立即切换局部计算动效。';
         if(model.functionalUnits?.some(u=>u.kind==='gaussian_reparameterization')) {
             el('detail-title').textContent='高斯潜空间 · 从编码到重建';
-            el('detail').textContent='编码特征分别进入均值头与对数方差头，定义逐维独立的高斯后验。采样模块将本次标准高斯噪声缩放、平移为潜变量 z，解码路径使用这个实际采样值。选中采样模块可检查原始算子；悬停区域显示局部动效。';
+            el('detail').textContent='编码特征分别进入均值头与对数方差头，定义逐维独立的高斯后验。采样模块将本次标准高斯噪声缩放、平移为潜变量 z，解码路径使用这个实际采样值。选中采样模块可检查数学说明；悬停区域显示局部动效。';
             el('formula').innerHTML=katex.renderToString(String.raw`q_\phi(z\mid x)=\mathcal N\!\left(\mu,\operatorname{diag}(\sigma^2)\right)`,{throwOnError:false});
             el('support').textContent='通常使用重建项与 KL 正则训练；这属于训练目标说明，不代表此处已捕获反向传播或损失计算。';
         }
@@ -71,16 +89,19 @@ function detail(n?: Operation) {
         el('support').textContent = '曲线按峰值归一化以便比较宽度，不是样本直方图。训练通常平衡重建项与 KL(q(z|x) || N(0,I))；当前视图只展示源码实际执行的前向过程。';
         return;
     }
-    el('detail-title').textContent = `${v.label} · ${n.name}`;
+    el('detail-title').textContent = String(n.attrs?.displayLabel??`${v.label} · ${n.name}`);
     el('formula').textContent = v.formula;
     el('detail').textContent = String(n.attrs?.description??`输入 ${n.inputs.join('、')} → 输出 ${n.outputs.join('、')}。来源：${n.source ?? '声明式定义'}。`);
+    if((n.attrs?.inputConditions as string[]|undefined)?.length)el('detail').textContent+=' '+[...new Set(n.attrs!.inputConditions as string[])].join(' ');
     if(n.attrs?.formula)el('formula').innerHTML=katex.renderToString(String(n.attrs.formula),{throwOnError:false});
     el('shape').textContent = n.outputs.map(id => { const t = model.tensors.find(t => t.id === id)!; return `${id} [${t.shape.join(' × ')}]`; }).join(' / ');
-    el('support').textContent = n.op === 'module' ? `${n.attrs?.operatorCount} 个真实算子；已进入 ${n.attrs?.modulePath}。切换算子细节可展开全部计算。` : v.detail === 'exact' ? '按算子定义连接可见窗口中的实际元素。窗口之外的坐标仍保留在模型元数据中。' : '此算子保留实际输入输出与拓扑，内部数学动效尚未实现；可注册专用插件。';
+    el('support').textContent = n.op === 'module' ? `${n.attrs?.operatorCount} 个真实算子；已进入 ${n.attrs?.modulePath}。数学结构展示向量、矩阵与功能单元；底层调用用于调试。` : v.detail === 'exact' ? '按算子定义连接可见窗口中的实际元素。窗口之外的坐标仍保留在模型元数据中。' : '此算子保留实际输入输出与拓扑，内部数学动效尚未实现；可注册专用插件。';
+    const excerpt=n.attrs?.sourceExcerpt as {file:string;line:number;code:string}|undefined;
+    if(excerpt)el('support').textContent+=`\n源码 ${excerpt.file}:${excerpt.line}\n${excerpt.code}`;
     for (const b of el('outline').querySelectorAll('button'))
         b.setAttribute('aria-current', String(b.dataset.id === n.id));
 }
-const viewer = new SiliconDevineViewer(stage, { transparentBackground:true, onSelect: detail, onStats: s => { syncNavigation(); pageStart = s.pageStart; el('computation').textContent = model?.architecture && !viewer.isMechanism ? s.atomic ? `原子组合预览 · ${s.atomic.atoms} 个基础算子 · 缩小维度教学数据 · 点击展开` : '结构通路演示 · 未加载权重 · 分区代表逻辑张量' : s.gaussian ? `潜变量 [${s.gaussian.coordinate.join(',')}] · μ ${s.gaussian.mean.toFixed(3)} · σ ${s.gaussian.std.toFixed(3)} · ε ${s.gaussian.epsilon.toFixed(3)} → z ${s.gaussian.sample.toFixed(3)}` : s.receptiveField ? `感受野 · 输出 [${s.receptiveField.output.join(',')}] · ${s.receptiveField.visibleSamples}/${s.receptiveField.totalSamples} 个输入坐标 · 核 ${s.receptiveField.kernel.join('×')}` : s.attention ? `Query ${s.attention.query} · ${s.attention.probabilities.length} 个 Key → 加权汇聚成输出 Token` : s.mechanism ? `${s.mechanism.kind} · 行 ${s.mechanism.row}${s.mechanism.sum !== undefined ? ' · Σp = ' + s.mechanism.sum.toFixed(3) : s.mechanism.rms !== undefined ? ' · RMS = ' + s.mechanism.rms.toFixed(3) : ''}` : s.weight ? `W[${s.weight.coordinates.join(',')}] = ${Number.isFinite(s.weight.value) ? s.weight.value.toFixed(4) : '未知'} · 矩阵 / 连线同步` : s.sample ? `x = ${s.sample.input.toFixed(4)} → y = ${s.sample.output.toFixed(4)}` : ''; el('active').textContent = s.active ? `计算区域 · ${model?.architecture ? viewer.getNavigation().nodes.find(n=>n.id===s.active)?.name??s.active : s.active}` : ''; el('stats').textContent = `${s.cells} 个${model?.architecture&&!viewer.isMechanism?'逻辑分区':'可见元素'} · ${s.connections} 条联系 · ${s.drawCalls} 次绘制${s.partialTensors&&!model?.architecture ? ` · ${s.partialTensors} 个坐标窗口` : ''}${s.unknownTensors ? ` · ${s.unknownTensors} 个未导出数值的张量` : ''}`; el<HTMLButtonElement>('prev').disabled = s.pageStart === 0; el<HTMLButtonElement>('next').disabled = s.pageStart + s.visibleNodes >= s.totalNodes; } });
+const viewer = new SiliconDevineViewer(stage, { transparentBackground:true, onSelect: detail, onStats: s => { syncNavigation(); pageStart = s.pageStart; el('computation').textContent = model?.architecture && !viewer.isMechanism ? s.atomic ? `原子组合预览 · ${s.atomic.atoms} 个基础算子 · 缩小维度教学数据 · 点击展开` : '结构通路演示 · 未加载权重 · 分区代表逻辑张量' : s.gaussian ? `潜变量 [${s.gaussian.coordinate.join(',')}] · μ ${s.gaussian.mean.toFixed(3)} · σ ${s.gaussian.std.toFixed(3)} · ε ${s.gaussian.epsilon.toFixed(3)} → z ${s.gaussian.sample.toFixed(3)}` : s.receptiveField ? `感受野 · 输出 [${s.receptiveField.output.join(',')}] · ${s.receptiveField.visibleSamples}/${s.receptiveField.totalSamples} 个输入坐标 · 核 ${s.receptiveField.kernel.join('×')}` : s.attention ? `Query ${s.attention.query} · ${s.attention.probabilities.length} 个 Key → 加权汇聚成输出 Token` : s.mechanism ? `${String(viewer.getNavigation().nodes.find(n=>n.id===s.active)?.attrs?.displayLabel??viewer.getNavigation().nodes.find(n=>n.id===s.active)?.name??'数学计算')} · 行 ${s.mechanism.row}${s.mechanism.sum !== undefined ? ' · Σp = ' + s.mechanism.sum.toFixed(3) : s.mechanism.rms !== undefined ? ' · RMS = ' + s.mechanism.rms.toFixed(3) : ''}` : s.weight ? `W[${s.weight.coordinates.join(',')}] = ${Number.isFinite(s.weight.value) ? s.weight.value.toFixed(4) : '未知'} · 矩阵 / 连线同步` : s.sample ? `x = ${s.sample.input.toFixed(4)} → y = ${s.sample.output.toFixed(4)}` : ''; el('active').textContent = s.active ? `计算区域 · ${viewer.getNavigation().nodes.find(n=>n.id===s.active)?.name??s.active}` : ''; el('stats').textContent = `${s.cells} 个${model?.architecture&&!viewer.isMechanism?'逻辑分区':'可见元素'} · ${s.connections} 条联系 · ${s.drawCalls} 次绘制${s.partialTensors&&!model?.architecture ? ` · ${s.partialTensors} 个坐标窗口` : ''}${s.unknownTensors ? ` · ${s.unknownTensors} 个未导出数值的张量` : ''}`; el<HTMLButtonElement>('prev').disabled = s.pageStart === 0; el<HTMLButtonElement>('next').disabled = s.pageStart + s.visibleNodes >= s.totalNodes; } });
 // Debug information is read-only; a host application can use getStats() directly.
 Object.assign(window, { siliconDevine: { viewer, get model() { return model; } } });
 function error(e: unknown) { el('error').hidden = false; el('error').textContent = e instanceof Error ? e.message : String(e); }
@@ -94,18 +115,19 @@ function load(m: unknown) {
     else
         viewer.load(valid);
     model = valid;
+    renderInputs(model);
     const support=inspectSupport(model);
     supportPanel.querySelector('pre')!.textContent=model.architecture?'当前为配置结构图；数值原理页使用独立 PyTorch 演示。':`数学依赖：${support.withDependencies} / ${support.total} 个算子\n`+(support.boundary.length?support.boundary.map(n=>`${n.id} · ${n.source}\n${n.reason}`).join('\n\n'):'当前图中的算子均有依赖映射。')+'\n\n'+support.notes.join('\n');
     el('error').hidden = true;
     el('model-name').textContent = ({official_vae:'VAE · 高斯潜空间',conv_vae:'卷积 VAE',conditional_vae:'条件 VAE',official_llama:'LLaMA · 原生架构',official_sab:'SAB · 集合自注意力',official_isab:'ISAB · 诱导点注意力'} as Record<string,string>)[model.name] ?? model.name;
     if (!liveUpdating) modelEntrance(stage);
     el('node-count').textContent = String(model.nodes.length);
-    el('source').textContent = `${model.producer?.backend ?? 'JSON'} · ${model.producer?.version ?? 'v1 图格式'}`;
+    el('source').textContent = model.discovery ? `${model.discovery.entry} · ${model.discovery.files.length} 个源码文件 · ${model.discovery.inputStatus==='unresolved' ? '尺寸待定 · 结构预览' : model.discovery.inputsInferred ? '已验证的自动示例输入' : '配置指定的示例输入'} · 构造器初始化权重` : `${model.producer?.backend ?? 'JSON'} · ${model.producer?.version ?? 'v1 图格式'}`;
     document.body.dataset.modelMode=model.architecture?'structure':'numeric';
-    el('structure-badge').hidden=!model.architecture;
-    el('structure-badge').textContent=model.architecture?`结构模式 · ${model.architecture.layers} 层 · ${(Number(model.architecture.parameterCount)/1e9).toFixed(2)}B 主干参数 · 未加载权重`:'';
+    el('structure-badge').hidden=!model.architecture&&model.producer?.backend!=='symbolic';
+    el('structure-badge').textContent=model.architecture?`结构模式 · ${model.architecture.layers} 层 · ${(Number(model.architecture.parameterCount)/1e9).toFixed(2)}B 主干参数 · 未加载权重`:model.producer?.backend==='symbolic'?(model.notes?.[0]??'结构预览 · 尺寸待定 · 未执行数值计算'):'';
     el<HTMLSelectElement>('representation').disabled=!!model.architecture;
-    el('tensor-select').closest('details')!.hidden=!!model.architecture;
+    el('tensor-select').closest('details')!.hidden=!!model.architecture||model.producer?.backend==='symbolic';
     refreshSelectors();
     navigationSignature = '';
     syncNavigation();
@@ -210,8 +232,11 @@ load(generated());
 function refreshSelectors() {
     el('modules').replaceChildren();
     el<HTMLSelectElement>('modules').add(new Option('全部模块', ''));
-    for (const path of viewer.getModules())
-        el<HTMLSelectElement>('modules').add(new Option(model.architecture?.scopes[path]?.name ?? ('　'.repeat(path.split('.').length - 1) + path), path));
+    const composition=viewer.getDisplayedModel()?.composition, scope=viewer.getNavigation().scope;
+    const current=composition?.units.find(u=>u.id===scope), parent=composition?.units.find(u=>u.children.includes(scope));
+    const paths=composition?[...new Set([...composition.roots,...(parent?[parent.id]:[]),...(current?[current.id,...current.children]:[])])]:viewer.getModules();
+    for (const path of paths)
+        el<HTMLSelectElement>('modules').add(new Option(model.architecture?.scopes[path]?.name ?? (composition ? viewer.getModuleLabel(path) : '　'.repeat(path.split('.').length - 1) + path), path));
     el('tensor-select').replaceChildren();
     for (const t of viewer.getDisplayedModel()?.tensors??model.tensors)
         el<HTMLSelectElement>('tensor-select').add(new Option(`${t.id} [${t.shape.join('×')}]`, t.id));
@@ -230,7 +255,7 @@ el('window-apply').onclick = async () => {
         el('window-status').textContent = e instanceof Error ? e.message : String(e);
     }
 };
-function disconnect() { live?.stop(); live = undefined; viewer.setDataProvider(undefined); el<HTMLButtonElement>('connect').disabled = false; el<HTMLButtonElement>('disconnect').disabled = true; el('live-status').textContent = '连接已断开。'; }
+function disconnect() { live?.stop(); live = undefined; document.body.classList.remove('awaiting-import');el('import-notice').hidden=el('import-settings').hidden=true;viewer.setDataProvider(undefined); el<HTMLButtonElement>('connect').disabled = false; el<HTMLButtonElement>('disconnect').disabled = true; el('live-status').textContent = '连接已断开。'; }
 el('disconnect').onclick = disconnect;
 el('connect').onclick = () => {
     try {
@@ -245,7 +270,7 @@ el('connect').onclick = () => {
                 finally {
                     liveUpdating = false;
                 }
-            }, onStatus: s => { el('live-status').textContent = s.error ? '捕获失败，保留上一份模型：' + s.error.slice(-350) : s.loading ? '正在捕获模型…' : s.ready ? `已连接 · 版本 ${s.revision} · 保存代码自动更新` : '等待 IDE 提供模型…'; }, onError: e => { el('live-status').textContent = '连接未就绪，正在重试：' + e.message; } });
+            }, onStatus: s => { updateImportAssistant(s);el('live-status').textContent = s.error ? (s.issue?.title??'需要处理')+'：'+s.error : s.loading ? '正在捕获模型…' : s.ready ? `已连接 · 版本 ${s.revision} · 保存代码自动更新` : '等待 IDE 提供模型…'; }, onError: e => { el('live-status').textContent = '连接未就绪，正在重试：' + e.message; } });
         live = connection;
         viewer.setDataProvider((id, indices, signal) => connection.tensorWindow(id, indices, signal));
         connection.start();
@@ -264,7 +289,7 @@ el<HTMLSelectElement>('speed').onchange = e => viewer.setSpeed(Number((e.target 
 el<HTMLInputElement>('progress').oninput = e => { viewer.setProgress(Number((e.target as HTMLInputElement).value) / 100); el('play').textContent = '播放'; };
 function syncNavigation() {
     if (model)
-        el('provenance').textContent = viewer.getDisplayedModel()?.provenance ? JSON.stringify(viewer.getDisplayedModel()!.provenance, null, 2) : '原生 PyTorch 捕获；功能识别根据实际运算依赖，未匹配结构保留原始算子。';
+        el('provenance').textContent = model.discovery ? JSON.stringify({discovery:model.discovery,provenance:viewer.getDisplayedModel()?.provenance}, null, 2) : viewer.getDisplayedModel()?.provenance ? JSON.stringify(viewer.getDisplayedModel()!.provenance, null, 2) : '原生 PyTorch 捕获；功能识别根据实际运算依赖，未匹配结构保留原始算子。';
     const nav = viewer.getNavigation(), signature = [nav.scope, nav.mechanism,nav.stage, nav.function ?? '', nav.representation, ...nav.nodes.map(n => n.id)].join('|');
     const stages=viewer.computationStages;stageChoice.hidden=tourButton.hidden=!stages.length;tourButton.textContent=viewer.isTouring?'停止巡航':'演示巡航';tourButton.setAttribute('aria-pressed',String(viewer.isTouring));
     const mechanismButton=el<HTMLButtonElement>('mechanism-toggle');mechanismButton.hidden=!viewer.isMechanism&&!viewer.mechanismAvailable;mechanismButton.textContent=viewer.isMechanism?'返回结构':'展开原子组合';
@@ -284,13 +309,13 @@ function syncNavigation() {
     for (const n of nav.nodes) {
         const b = document.createElement('button');
         b.dataset.id = n.id;
-        b.textContent = n.op==='structure'?`${n.name}${n.attrs?.scopeRef||n.attrs?.mechanismRef?' ›':''}`:`${n.op === 'module' ? n.attrs?.moduleType : operatorVisual(n.op).label} · ${n.name.split('.').slice(-2).join('.')}`;
+        b.textContent = n.op==='structure'?`${n.name}${n.attrs?.scopeRef||n.attrs?.mechanismRef?' ›':''}`:String(n.attrs?.displayLabel??`${n.op === 'module' ? n.attrs?.moduleType : n.op==='semantic'||n.op==='layout'?n.name:operatorVisual(n.op).label} · ${n.name.split('.').slice(-2).join('.')}`);
         b.title = n.source ?? n.op;
         b.onclick = () => { viewer.focus(n.id); syncNavigation(); };
         el('outline').append(b);
     }
 }
 el('parent-module').onclick = () => { viewer.parentModule(); syncNavigation(); detail(); };
-el<HTMLSelectElement>('representation').onchange = e => { viewer.setRepresentation((e.target as HTMLSelectElement).value as 'architecture' | 'operators'); syncNavigation(); };
+el<HTMLSelectElement>('representation').onchange = e => { viewer.setRepresentation((e.target as HTMLSelectElement).value as 'architecture' | 'operators' | 'raw'); syncNavigation(); };
 
 import './keynote.css';

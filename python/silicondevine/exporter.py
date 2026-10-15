@@ -58,6 +58,7 @@ def _op(target, module=None):
                'view': 'reshape', '_unsafe_view':'reshape', 'reshape': 'reshape', 'flatten': 'flatten', 'unflatten':'reshape',
                'unsqueeze':'reshape', 'squeeze':'reshape', 'contiguous':'identity', 'restore_layout':'identity',
                'select':'select', 'slice':'slice',
+               'invert':'routing_not','masked_fill':'routing_masked_fill','masked_fill_':'routing_masked_fill',
                'permute': 'permute', 'transpose': 'transpose', 'cat': 'concat',
                'clone': 'identity', 'detach': 'identity', 'dropout': 'dropout',
                'rms_norm':'rmsnorm','chunk':'chunk','split':'split','split_with_sizes':'split','getitem':'getitem',
@@ -73,20 +74,27 @@ def _op(target, module=None):
                     'avg_pool1d':'avgpool1d','avg_pool2d':'avgpool2d','avg_pool3d':'avgpool3d'})
     aliases.update({'mix_kernels':'kernel_mix','batch_conv2d':'dynamic_conv2d'})
     aliases.update({'exp':'exp','randn_like':'standard_normal','randn':'standard_normal'})
+    aliases.update({'add_':'add','mul_':'multiply','div_':'divide','sub_':'subtract',
+                    'tanh_':'tanh','relu_':'relu','leaky_relu_':'leaky_relu',
+                    'detach_':'identity','lift_fresh_copy':'identity',
+                    'log':'log','reciprocal':'reciprocal'})
+    aliases.update({'broadcast_tensors':'broadcast_tensors','_weight_norm':'weightnorm',
+                    'normal_':'gaussian_noise','ones_like':'constant'})
     from .api_extensions import function_aliases
     aliases.update(function_aliases())
     return aliases.get(base, 'opaque')
 
 
 class Capture(fx.Interpreter):
-    def __init__(self, module, include_values, value_limit, total_limit, tensor_sink=None):
+    def __init__(self, module, include_values, value_limit, total_limit, tensor_sink=None, input_labels=None):
         super().__init__(module)
         self.include_values, self.limit, self.remaining = include_values, value_limit, total_limit
         self.tensors, self.nodes, self.refs, self.inputs, self.outputs = [], [], {}, [], []
         self.parameters = {}
         self.tensor_sink = tensor_sink
+        self.input_labels = iter(input_labels or [])
 
-    def tensor(self, value, name, role='activation', source=None):
+    def tensor(self, value, name, role='activation', source=None, input_label=None):
         if isinstance(value, torch.Tensor):
             if value.layout != torch.strided or value.is_quantized or value.is_complex():
                 raise ValueError(f'{name}: this exporter currently requires dense real tensors; layout={value.layout}, dtype={value.dtype}')
@@ -94,6 +102,8 @@ class Capture(fx.Interpreter):
                       'role': role, 'stride': list(value.stride())}
             if source:
                 tensor['source'] = source
+            if input_label:
+                tensor.update(inputParameter=input_label[0], inputPath=input_label[1], semantic=input_label[1])
             if self.include_values and self.remaining > 0:
                 # Slice before device transfer: exports do not copy an entire GPU tensor to CPU.
                 count = min(value.numel(), self.limit, self.remaining)
@@ -112,9 +122,11 @@ class Capture(fx.Interpreter):
                 self.tensor_sink(name, value)
             return [name]
         if isinstance(value, (list, tuple)):
-            return [r for i, v in enumerate(value) for r in self.tensor(v, f'{name}:{i}', role, source)]
+            return [r for i, v in enumerate(value) for r in self.tensor(v, f'{name}:{i}', role, source,
+                (input_label[0], f'{input_label[1]}[{i}]') if input_label else None)]
         if isinstance(value, dict):
-            return [r for k, v in value.items() for r in self.tensor(v, f'{name}:{k}', role, source)]
+            return [r for k, v in value.items() for r in self.tensor(v, f'{name}:{k}', role, source,
+                (input_label[0], f'{input_label[1]}[{k!r}]') if input_label else None)]
         return []
 
     def deps(self, value):
@@ -134,7 +146,9 @@ class Capture(fx.Interpreter):
         role = 'input' if node.op == 'placeholder' else 'activation'
         if node.op == 'get_attr':
             role = 'parameter' if isinstance(result, nn.Parameter) else 'buffer'
-        refs = self.tensor(result, node.name, role, str(node.target))
+        label = next(self.input_labels, None) if node.op == 'placeholder' else None
+        captured_value = torch.tensor(result) if node.op == 'placeholder' and type(result) in (int,float) else result
+        refs = self.tensor(captured_value, node.name, role, str(node.target), label)
         self.refs[node.name] = refs
         if node.op == 'placeholder':
             self.inputs.extend(refs)
@@ -144,6 +158,12 @@ class Capture(fx.Interpreter):
             attrs, parameters = {}, {}
             # Repeated operands (x+x, x@x) are distinct argument positions.
             inputs = self.deps((node.args, node.kwargs))
+            if op == 'gaussian_noise':
+                attrs.update(mean=float(node.args[1]) if len(node.args)>1 else 0,
+                             std=float(node.args[2]) if len(node.args)>2 else 1)
+                inputs = []  # Storage allocation is not a mathematical operand.
+            if op == 'weightnorm':
+                attrs['dim'] = int(node.args[2]) if len(node.args)>2 else 0
             if module is not None:
                 for key in ['stride', 'padding', 'padding_mode', 'dilation', 'groups', 'kernel_size', 'dim', 'eps', 'approximate', 'start_dim', 'end_dim', 'normalized_shape', 'ceil_mode', 'count_include_pad', 'divisor_override', 'output_size', 'output_padding', 'num_groups', 'track_running_stats', 'negative_slope', 'alpha', 'beta', 'threshold']:
                     if hasattr(module, key):
@@ -250,11 +270,14 @@ class Capture(fx.Interpreter):
             op=normalize(self,node,module,op,attrs,parameters,inputs)
             from .execution import normalize_execution
             op=normalize_execution(self,node,result,op,attrs)
+            if attrs.get('fillConstant'): inputs.append(attrs['fillConstant'])
             stack = node.meta.get('nn_module_stack', {})
             if op=='standard_normal':
                 attrs.update({'distribution':'Normal(0,1)','stochastic':True,'shapeInputs':list(inputs),'valueSource':'captured PyTorch execution; browser never resamples'})
             trace=str(node.meta.get('stack_trace',''))
             if trace:attrs['codeTrace']=trace[-2500:]
+            if 'silicondevine_design_stack' in node.meta:
+                attrs['designSourceStack']=node.meta['silicondevine_design_stack']
             if 'modeling_' in trace and 'apply_rotary_pos_emb(' in trace:attrs['sourceFunction']='apply_rotary_pos_emb'
             if 'silicondevine_lowered_from' in node.meta:
                 attrs['lowered_from']=node.meta['silicondevine_lowered_from']
@@ -293,10 +316,15 @@ def export_model(model, args, path=None, *, backend='fx', include_values=False, 
     if not 0 <= value_limit <= 100000 or not 0 <= total_value_limit <= 2000000:
         raise ValueError('Invalid value window budget')
     args = args if isinstance(args, tuple) else (args,)
+    from .input_contract import describe_inputs, flat_input_labels, attach_contract
+    input_contract = describe_inputs(model, args, kwargs)
+    input_labels = flat_input_labels(model, args, kwargs or {})
     devices = list(range(torch.cuda.device_count())) if torch.cuda.is_available() else []
     with torch.random.fork_rng(devices=devices), torch.no_grad():
         copied = copy.deepcopy(model).eval()
         inputs, keyword_inputs = copy.deepcopy((args, kwargs or {}))
+        cpu_rng = torch.get_rng_state()
+        cuda_rng = torch.cuda.get_rng_state_all() if devices else None
         constraints={}
         try:
             if backend=='fx':
@@ -305,16 +333,24 @@ def export_model(model, args, path=None, *, backend='fx', include_values=False, 
                 bound=inspect.signature(graph.forward).bind(*inputs,**keyword_inputs)
                 bound.apply_defaults()
                 flat=[bound.arguments[str(n.target)] for n in graph.graph.nodes if n.op=='placeholder']
+                input_labels=[(str(n.target), str(n.target)) for n in graph.graph.nodes if n.op=='placeholder']
             elif backend=='execution':
                 if dynamic_shapes is not None:raise ValueError('execution records one concrete input path')
                 from torch.fx.experimental.proxy_tensor import make_fx
-                def run(*values):return copied(*values,**keyword_inputs)
+                from torch.utils._pytree import tree_flatten, tree_unflatten
+                flat, input_spec = tree_flatten((inputs, keyword_inputs))
+                def run(*values):
+                    positional, named = tree_unflatten(values, input_spec)
+                    from .design_trace import DesignTrace
+                    design = DesignTrace(copied)
+                    try:
+                        with design: return copied(*positional, **named)
+                    finally: design.release()
                 run._orig_mod=copied
                 graph=make_fx(run,pre_dispatch=True,record_module_stack=True,record_stack_traces=True,
-                              tracing_mode='real',_error_on_data_dependent_ops=False)(*inputs)
+                              tracing_mode='real',_error_on_data_dependent_ops=False)(*copy.deepcopy(flat))
                 from .execution import lower_execution
                 graph=lower_execution(graph)
-                flat=list(inputs)
             else:
                 program=torch.export.export(copied,inputs,keyword_inputs,dynamic_shapes=dynamic_shapes)
                 graph=program.module()
@@ -326,7 +362,11 @@ def export_model(model, args, path=None, *, backend='fx', include_values=False, 
                 constraints={str(k):str(v) for k,v in program.range_constraints.items()}
                 from torch.utils._pytree import tree_flatten
                 flat=tree_flatten((inputs,keyword_inputs))[0]
-            capture = Capture(graph, include_values, value_limit, total_value_limit, tensor_sink)
+            capture = Capture(graph, include_values, value_limit, total_value_limit, tensor_sink, input_labels)
+            # Real tracing can sample latent noise. Replay the same randomness
+            # when recording values so an execution path and its data agree.
+            torch.set_rng_state(cpu_rng)
+            if cuda_rng is not None: torch.cuda.set_rng_state_all(cuda_rng)
             capture.run(*flat, enable_io_processing=False)
         except Exception as exc:
             raise RuntimeError(f'{backend} capture failed: {exc}. Try the other backend or export a traceable submodule. No partial graph was saved.') from exc
@@ -344,6 +384,13 @@ def export_model(model, args, path=None, *, backend='fx', include_values=False, 
         result['notes'].insert(0,'Concrete executed path: data-dependent routing is specialized to these inputs. Re-capture after changing inputs.')
     from .recognition import annotate_model
     annotate_model(result,copied)
+    from .composition import annotate_composition
+    annotate_composition(result, copied)
+    from .source_analysis import annotate_source
+    annotate_source(result, copied)
+    from .design import annotate_design
+    annotate_design(result)
+    attach_contract(result, input_contract)
     if path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)

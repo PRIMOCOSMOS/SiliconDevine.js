@@ -41,7 +41,7 @@ export function installSpatialOperators(register:(name:string,visual:OperatorVis
         if(!Number.isInteger(at)||at<0||at>=s[axis])return [];
         c[axis]=at;return [{tensor:indices.id,index:ii,weight:0},{tensor:x.id,index:flatIndex(c,s),weight:1}];
     }});
-    for(const op of ['sum','amax','amin'])register(op,{label:{sum:'求和归约',amax:'最大值归约',amin:'最小值归约'}[op]!,color:'#c4ade2',formula:{sum:'y = Σ x[归约轴]',amax:'y = max x[归约轴]',amin:'y = min x[归约轴]'}[op]!,detail:'exact',dependencies:(n,out,index,t)=>{
+    for(const op of ['sum','amax','amin','any','all'])register(op,{label:{sum:'求和归约',amax:'最大值归约',amin:'最小值归约',any:'逻辑或归约',all:'逻辑与归约'}[op]!,color:'#c4ade2',formula:{sum:'y = Σ x[归约轴]',amax:'y = max x[归约轴]',amin:'y = min x[归约轴]',any:'y = ∨ bool(x[归约轴])',all:'y = ∧ bool(x[归约轴])'}[op]!,detail:'exact',dependencies:(n,out,index,t)=>{
         const x=t.get(n.inputs[0])!,s=x.shape as number[],a=n.attrs??{},raw=a.dims as number[]|null,axes=(raw?.length?raw:s.map((_,i)=>i)).map(i=>(i+s.length)%s.length),oc=coordinates(index,out.shape as number[]);let k=0;
         const base=s.map((_,j)=>axes.includes(j)?0:oc[a.keepdim?j:k++]),reduced=axes.map(j=>s[j]),count=reduced.reduce((p,v)=>p*v,1);
         if(count>65536)return [];

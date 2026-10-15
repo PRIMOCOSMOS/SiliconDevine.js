@@ -30,7 +30,7 @@ def annotate_model(graph,model):
         n=producer.get(t)
         if not n or depth>15:return None
         if n['op']=='matmul':return n
-        if n['op'] not in ('identity','cast','multiply','divide','add','attention_mask','slice'):return None
+        if n['op'] not in ('identity','cast','multiply','divide','add','attention_mask','routing_masked_fill','slice','reshape'):return None
         found={}
         for i in n['inputs']:
             p=find_score(i,depth+1)
@@ -67,7 +67,7 @@ def annotate_model(graph,model):
         if n['op']=='add' and len(n['inputs'])==2:
             a,b=n['inputs'];shape=tensors[n['outputs'][0]]['shape']
             if tensors[a]['shape']==tensors[b]['shape']==shape and tensors[a]['role'] in ('input','activation') and tensors[b]['role'] in ('input','activation'):
-                skip=a if a in ancestors(b) else b if b in ancestors(a) else None
+                skip=(a if a in ancestors(b) else b if b in ancestors(a) else None) if a!=b else None
                 if skip:
                     n['attrs']['residualInput']=skip;n['name']='残差汇合 · '+n['group'];units.append({'kind':'residual','id':n['id'],'input':skip,'output':n['outputs'][0],'evidence':'same shape and one operand is an ancestor of the other'})
     def scalar(t):

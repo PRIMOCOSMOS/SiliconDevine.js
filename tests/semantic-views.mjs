@@ -20,5 +20,18 @@ for(const family of ['deepseek_v3','glm45','minimax_m1']){
    if(n.op==='layout')for(const d of deps){assert.equal(valueAt(out,i),valueAt(t.get(d.tensor),d.index));mappings++;}
   }}
  }
+ // Layout is absorbed into the math operation; still verify each exact
+ // captured coordinate transfer retained inside that presentation unit.
+ const seen=new Set();
+ function verify(n){
+  if(seen.has(n.id))return;seen.add(n.id);
+  for(const child of n.attrs?.children??[])verify(child);
+  if(!['reshape','transpose','permute','expand','flatten','identity'].includes(n.op)||n.attrs?.presentationChildren)return;
+  for(const id of n.outputs){const out=t.get(id);for(let i=0;i<Math.min(16,out?.data?.values.length??0);i++){
+   const deps=operatorVisual(n.op).dependencies(n,out,i,t);assert.ok(deps.length);
+   for(const d of deps){assert.equal(valueAt(out,i),valueAt(t.get(d.tensor),d.index));mappings++;}
+  }}
+ }
+ nodes.forEach(verify);
 }
 console.log(`Semantic views preserve boundaries; ${mappings} coordinate/value mappings verified.`);

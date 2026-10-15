@@ -4,7 +4,19 @@ import { topologicalNodes, type Model, type Operation } from './model.js';
 export function contract(model: Model, nodes: Operation[], children: Operation[], name: string, op: string, attrs: Record<string, unknown> = {}): Operation[] {
     if (!children.length) return nodes;
     const ids = new Set(children.map(n => n.id)), produced = new Set(children.flatMap(n => n.outputs));
-    const external = new Set([...model.outputs, ...nodes.filter(n => !ids.has(n.id)).flatMap(n => [...n.inputs, ...Object.values(n.parameters ?? {})])]);
+    const leaves=(n:Operation):string[]=>{
+        const inner=n.attrs?.children as Operation[]|undefined;
+        if(inner)return inner.flatMap(leaves);
+        const scope=model.composition?.units.find(u=>u.id===n.id);
+        if(scope)return scope.nodes;
+        const path=n.attrs?.modulePath;
+        return typeof path==='string'?model.nodes.filter(c=>c.group===path||c.group?.startsWith(path+'.')).map(c=>c.id):[n.id];
+    };
+    const rawIds=new Set(children.flatMap(leaves));
+    // A scope boundary is an output even when its consumer is in another scope.
+    const external = new Set([...model.outputs,
+        ...model.nodes.filter(n=>!rawIds.has(n.id)).flatMap(n=>[...n.inputs,...Object.values(n.parameters??{})]),
+        ...nodes.filter(n => !ids.has(n.id)).flatMap(n => [...n.inputs, ...Object.values(n.parameters ?? {})])]);
     const outputs = [...produced].filter(id => external.has(id));
     if (!outputs.length) outputs.push(...children.at(-1)!.outputs);
     const inputs = [...new Set(children.flatMap(n => [...n.inputs, ...Object.values(n.parameters ?? {})]).filter(id => !produced.has(id)))];
@@ -49,7 +61,7 @@ export function semanticStages(model: Model, original: Operation[]): Operation[]
             }
             children.push(next[0]); tail = next[0];
         }
-        nodes = contract(model, nodes, children, '注意力分配 · 缩放、掩码与归一化', 'semantic', {
+        nodes = contract(model, nodes, children, '注意力分布', 'semantic', {
             ...softmax.attrs, motionKind: 'softmax', dim: -1, attentionRole: 'probability',
             description: '先将 QKᵀ 按头维度缩放，叠加实际掩码，再沿 Key 轴做 Softmax。每个 Query 对应一行概率；被屏蔽的位置概率为零。',
             formula: 'P=\\operatorname{softmax}_{K}(QK^{\\mathsf T}/\\sqrt{d_k}+M)',
@@ -64,12 +76,16 @@ export function semanticStages(model: Model, original: Operation[]): Operation[]
         });
     }
     return nodes.map(n => {
+        if(n.op==='matmul'&&n.attrs?.attentionRole)return {...n,attrs:{...n.attrs,
+            displayLabel:n.attrs.attentionRole==='score'?'Token 相似度 · QKᵀ':'Token 加权汇聚 · PV',
+            description:n.attrs.attentionRole==='score'?'Query 与各 Key 的通道做点积，形成 Query × Key 相似度矩阵。Key 的转置归入此矩阵运算。':'每个 Query 按注意力概率汇聚 Value，得到更新后的 Token 表征。',
+        }};
         if(n.op==='linear'){
             const key=(n.group??'').split('.').at(-1)??'';
             const names:Record<string,string>={q_proj:'Q · Query 投影',k_proj:'K · Key 投影',v_proj:'V · Value 投影',q_a_proj:'Q · 低秩压缩',q_b_proj:'Q · 多头投影',kv_a_proj_with_mqa:'KV · 内容与位置压缩',kv_b_proj:'KV · 多头展开',o_proj:'输出投影',out_proj:'输出投影',gate_proj:'门投影',up_proj:'内容升维',down_proj:'输出降维'};
             if(names[key])return {...n,attrs:{...n.attrs,displayLabel:names[key]}};
         }
-        if (n.attrs?.residualInput) return { ...n, name: '残差汇合 · 保留输入信息', attrs: { ...n.attrs, description: '将子层输出与跳连接携带的输入相加，保留原有表征并叠加本层更新。' } };
+        if (n.attrs?.residualInput) return { ...n, name: '残差连接', attrs: { ...n.attrs,displayLabel:'残差连接', description: '保留输入表征，并叠加子层更新：y = x + F(x)。' } };
         return n;
     });
 }

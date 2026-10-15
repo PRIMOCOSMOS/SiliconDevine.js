@@ -1,5 +1,19 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>支持范围与 PyTorch 接口核查 · 0.7.1</title><style>body{margin:0;background:#080c12;color:#eef3f8;font:16px/1.8 "Segoe UI","Microsoft YaHei UI",sans-serif}main{max-width:920px;margin:48px auto;padding:0 24px 80px}h1{font-size:36px;line-height:1.3}h2{font-size:23px;margin:48px 0 16px;scroll-margin-top:20px}h3{font-size:19px;margin-top:30px}p,li{color:#d0dce6}a{color:#a9d9f7}pre{padding:20px;background:#151f2b;border-radius:12px;overflow:auto;font:14px/1.7 Consolas,monospace}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}table{border-collapse:collapse;width:100%;min-width:460px;font-size:14px}td,th{padding:12px;text-align:left;border-bottom:1px solid #344452;vertical-align:top}.table-scroll{overflow:auto}nav{padding:18px 0;border-bottom:1px solid #344452}nav a{margin-right:18px;display:inline-block}a:focus-visible{outline:2px solid #b5e2ff;outline-offset:4px}@media(max-width:600px){main{padding:0 16px 48px;margin-top:24px}h1{font-size:28px}h2{font-size:21px}pre{padding:14px}}</style></head><body><main><nav><a href="QUICKSTART.html">使用说明</a><a href="INDEX.html">文档目录</a></nav><h1 id="pytorch-071">支持范围与 PyTorch 接口核查 · 0.7.1</h1>
 <p><a href="QUICKSTART.html">使用说明</a> · <a href="INDEX.html">文档目录</a></p>
+<h3 id="_1">自动导入的证据层级</h3>
+<ol>
+<li><strong>已验证计算图</strong>：PyTorch 对示例输入实际执行，保留 ATen / FX 运算、参数与数值。动态分支只表示本次执行路径。</li>
+<li><strong>源码依赖图</strong>：输入尺寸待定，FX 仍可识别 Python 运算依赖。已知算子类型保留，尺寸用 <code>?</code>，不生成数值。</li>
+<li><strong>模块结构预览</strong>：FX 被数据条件等阻止时，展示注册模块及其所属关系，并附 Python 源码分析。注册顺序不被解释成计算顺序。</li>
+</ol>
+<p>Python 分析覆盖可读取的 <code>forward</code>、本类方法与导入的 Python 辅助函数，记录调用、条件、循环及文件行号。递归深度最多 3 层、每个分析最多 64 个函数；这部分是静态代码证据，不宣称所有分支均已执行。构造器必填参数、缺失依赖、多个入口和内存预算仍可能需要用户指定。</p>
+<p>嵌套 <code>return</code> 中的多个模块调用按实际调用边界展开，连续张量准备操作可聚合并继续展开。新增标准 <code>any</code> / <code>all</code> / <code>ne</code>、<code>eye</code> 和原地 <code>masked_fill_</code> 识别。未支持的底层调用显示真实 API 名和源码，保留捕获结果，不冒充已实现的数学动效。</p>
+<h3 id="_2">面向架构设计的数学层级</h3>
+<p>默认细节展示向量、矩阵和功能单元。执行捕获记录用户 Python 函数的实际调用边界，支持跨文件辅助函数和多次独立调用。参数化模块继续保留自身边界，辅助函数分组不会吸收其调用的可学习投影。</p>
+<p>相乘后沿最后一个向量轴求和可识别为点积；同一向量的对应操作表示平方范数。单独逐通道相乘保留乘积含义。残差沿用同形张量与祖先关系证据。默认视图隐藏布尔准备、填充、类型转换和内部布局层，将其坐标依赖保留在数学单元中；纯工程作用域可以不产生可视节点。因果约束、路由、特征拼接和分组等数学含义保留。投影、卷积、点积和概率分布保持各自视觉机制，聚合后的权重索引、偏置和跨范围张量输出仍可定位。完整调用保留在调试视图。</p>
+<p>输入接口根据 Python 签名绑定和 PyTorch pytree 路径恢复，区分位置参数、关键字参数、嵌套容器及可选默认值。同一张量传给多个参数时保留各参数名称。源码形状符号与本次实际尺寸分开记录；未知尺寸预览也保留完整参数签名。可选输入的生成表达式只采用源码中可确认的 <code>if parameter is None</code> 赋值，不根据变量名推测其业务含义。</p>
+<p>手写 RMS 归一化可以按平方、末轴均值、非负稳定项、倒平方根及向量调制的实际依赖还原为一个归一化单元，可选 γ 保留为该单元的参数。识别不依赖类名。中间统计量另有用途时，保留其独立边界；完整调用仍在调试视图中。</p>
+<p>当前执行后端在已验证的 PyTorch 2.9 中记录调用边界。FX / export 图及旧 JSON 可以使用依赖模式识别；缺少函数调用信息时只采用能确认的分组。源码名称与说明用于解释，数学含义不依靠模型名称猜测。</p>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -43,7 +57,7 @@
 </tbody>
 </table></div>
 <p>Conv 支持 same/valid、整数/元组 padding、reflect/replicate/circular。权重线与 W 晶体通过相同 Tensor ID / flatten index 联动。</p>
-<h2 id="_1">明确边界</h2>
+<h2 id="_3">明确边界</h2>
 <ul>
 <li>这是给定输入的 eval 前向图，不是反向梯度、优化器或全部 Python 分支。FX 和 export 各有可跟踪性限制。</li>
 <li>完整依赖规则不意味着整个模型同时渲染。图段、晶体与连线有预算；复杂图按区域懒惰显示，未知值不当作零。</li>
@@ -152,7 +166,7 @@
 </tr>
 </tbody>
 </table></div>
-<h2 id="_2">检查自己的模型</h2>
+<h2 id="_4">检查自己的模型</h2>
 <p>在 IDE 先运行：</p>
 <pre><code class="language-python">from silicondevine import audit_model
 report = audit_model(model, (example_input,), backend=&quot;export&quot;)
@@ -161,7 +175,7 @@ print(report[&quot;unresolved&quot;])
 </code></pre>
 <p>它检查实际执行图，不把 API 名称相似视为支持成功。Web 端打开「解读与参数 → 算子支持检查」，可以看到本图有数学依赖插件的数量、尚未展开的算子和原因。这个结果来自实际渲染注册表，也包含你自己注册的插件。</p>
 <p>JavaScript 可调用 <code>inspectSupport(model)</code> 获取同一份报告。识别和渲染分别检查：有些已识别的融合算子会因开销或随机行为保持边界。</p>
-<h2 id="_3">核对依据</h2>
+<h2 id="_5">核对依据</h2>
 <ul>
 <li><a href="https://docs.pytorch.org/docs/stable/nn.html">PyTorch nn 模块目录</a></li>
 <li><a href="https://docs.pytorch.org/docs/stable/fx.html">FX 捕获及控制流限制</a></li>
@@ -171,7 +185,7 @@ print(report[&quot;unresolved&quot;])
 <li><a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU 的通道参数</a></li>
 </ul>
 <p>官方 stable 页面可能随 PyTorch 版本更新；实际兼容性以当前安装环境中的捕获测试为准。</p>
-<h2 id="_4">空间采样示例</h2>
+<h2 id="_6">空间采样示例</h2>
 <p>模型库「基础网络 → 空间采样与重组」依次展示双线性上采样、二维网格采样、Unfold 分块、Fold 重叠求和。来源文件为 <code>examples/spatial_operators.py</code>；在启动器的自定义代码入口选择此文件、工厂函数填 <code>build</code>，即可从 IDE 修改参数并重新捕获。</p>
 <p>参与采样的源邻域会高亮；移动的晶体按实际插值权重着色，并汇入对应输出。计算区域沿主干排列，动效只更新活动区域。动画中的贡献晶体有固定数量上限，数学依赖和原始张量坐标保持完整记录。</p>
 <p>核对接口：<a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html">interpolate</a>、<a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html">grid_sample</a>、<a href="https://docs.pytorch.org/docs/stable/generated/torch.gather.html">gather</a>、<a href="https://docs.pytorch.org/docs/stable/generated/torch.index_select.html">index_select</a>。</p></main></body></html>

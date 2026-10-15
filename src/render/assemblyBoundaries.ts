@@ -1,6 +1,7 @@
 import * as T from 'three';
 import type {Assembly} from '../core/assemblies.js';
 import type {TensorPlane} from '../core/layout.js';
+import {industrialTheme as theme} from './industrialTheme.js';
 
 /** Open corner frames identify ownership without enclosing tensors in opaque boxes.
  * All idle frames share one draw; selection uses one additional draw.
@@ -22,11 +23,11 @@ export class AssemblyBoundaries {
             if(box.isEmpty())continue;
             box.expandByScalar(.3);this.bounds.set(a.id,box);
             const points=this.corners(box);positions.push(...points);
-            const c=new T.Color(a.color);for(let i=0;i<points.length/3;i++)colors.push(c.r,c.g,c.b);
+            const c=new T.Color(theme.frame).lerp(new T.Color(a.color),.18);for(let i=0;i<points.length/3;i++)colors.push(c.r,c.g,c.b);
         }
         const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));
-        this.idle=new T.LineSegments(geometry,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.28,depthWrite:false}));
-        this.selected=new T.LineSegments(new T.BufferGeometry(),new T.LineBasicMaterial({color:'#d8f8ff',transparent:true,opacity:.9,depthWrite:false}));
+        this.idle=new T.LineSegments(geometry,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.34,depthWrite:false}));
+        this.selected=new T.LineSegments(new T.BufferGeometry(),new T.LineBasicMaterial({color:theme.signal,transparent:true,opacity:.9,depthWrite:false}));
         this.selected.visible=false;parent.add(this.idle,this.selected);
     }
     private corners(b:T.Box3){
@@ -37,12 +38,17 @@ export class AssemblyBoundaries {
         }
         // Two rear rails make multi-plane ownership legible without drawing across data.
         points.push(b.min.x,b.min.y,b.min.z,b.min.x,b.max.y,b.min.z,b.max.x,b.min.y,b.min.z,b.max.x,b.max.y,b.min.z);
+        // Three registration ticks sit outside the ownership boundary, not over data.
+        for(let i=0;i<3;i++){
+            const x=b.min.x+.18+i*.16;
+            if(x<b.max.x)points.push(x,b.min.y,b.min.z-.1,x,b.min.y,b.min.z-.1-(i===0?.35:.18));
+        }
         return points;
     }
     update(id?:string){
         if(this.active===id)return;this.active=id;
         const box=id?this.bounds.get(id):undefined;this.selected.visible=!!box;
-        (this.idle.material as T.LineBasicMaterial).opacity=id?.12:.28;
+        (this.idle.material as T.LineBasicMaterial).opacity=id?.19:.34;
         this.selected.geometry.dispose();this.selected.geometry=new T.BufferGeometry();
         if(box)this.selected.geometry.setAttribute('position',new T.Float32BufferAttribute(this.corners(box),3));
     }

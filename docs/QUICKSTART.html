@@ -1,5 +1,5 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SiliconDevine.js 使用说明</title><style>body{margin:0;background:#080c12;color:#eef3f8;font:16px/1.8 "Segoe UI","Microsoft YaHei UI",sans-serif}main{max-width:920px;margin:48px auto;padding:0 24px 80px}h1{font-size:36px;line-height:1.3}h2{font-size:23px;margin:48px 0 16px;scroll-margin-top:20px}h3{font-size:19px;margin-top:30px}p,li{color:#d0dce6}a{color:#a9d9f7}pre{padding:20px;background:#151f2b;border-radius:12px;overflow:auto;font:14px/1.7 Consolas,monospace}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}table{border-collapse:collapse;width:100%;min-width:460px;font-size:14px}td,th{padding:12px;text-align:left;border-bottom:1px solid #344452;vertical-align:top}.table-scroll{overflow:auto}nav{padding:18px 0;border-bottom:1px solid #344452}nav a{margin-right:18px;display:inline-block}a:focus-visible{outline:2px solid #b5e2ff;outline-offset:4px}@media(max-width:600px){main{padding:0 16px 48px;margin-top:24px}h1{font-size:28px}h2{font-size:21px}pre{padding:14px}}</style></head><body><main><nav aria-label="文档导航"><a href="INDEX.html">参考目录</a><a href="#2">代码接入</a><a href="#6">看图与操作</a><a href="#8">常见问题</a></nav><h1 id="silicondevinejs">SiliconDevine.js 使用说明</h1>
-<p>在 IDE 中写普通 PyTorch 模型，给出一组示例输入，即可查看它的结构、张量和计算过程。推荐先用启动器连接代码；后续保存文件，网页会自动更新。</p>
+<p>在 IDE 中写普通 PyTorch 模型，导入项目即可开始查看结构。应用会尝试推断并验证示例输入；输入尺寸暂时无法确定时，仍可查看已确认的结构。推荐先用启动器连接代码；后续保存文件，网页会自动更新。</p>
 <h2 id="1">1. 准备环境</h2>
 <ul>
 <li>保留 <code>D:\SiliconDevine.js</code> 整个文件夹，EXE 需要其中的网页资源与 Python 工具。</li>
@@ -9,7 +9,106 @@
 <pre><code class="language-powershell">D:\Anaconda3\python.exe -m pip install -e D:\SiliconDevine.js\python
 </code></pre>
 <p>若使用虚拟环境，将命令开头换成该环境的 <code>python.exe</code>。Transformers 示例额外需要 <code>transformers==4.57.1</code>；普通 MLP/CNN 无需此依赖。</p>
-<h2 id="2">2. 推荐：写模型，保存即更新</h2>
+<h2 id="2">2. 推荐：直接导入模型项目</h2>
+<ol>
+<li>打开 <code>SiliconDevine.exe</code>，点击「导入目录」选择模型所在项目；也可通过「选择文件…」多选 <code>.py</code> 文件。</li>
+<li>选择装有该项目依赖的 Python 环境。高级设置保留 <code>auto</code>。</li>
+<li>点击「进入模型空间」。应用查找 <code>nn.Module</code> 子类及其本地依赖，判断哪个类组合了其他子模块，再捕获真实计算图。</li>
+<li>在 IDE 中编辑并保存。模型目录、包内依赖或配置变更后，网页自动刷新；失败时保留上一份有效图。</li>
+</ol>
+<p>无需固定文件名，也无需 <code>build_model()</code>。除了模型类，也会发现直接返回模型实例或先构造后返回局部模型变量的普通函数，函数名不限；函数内部的任意动态构造仍可能需要显式入口。保持原仓库的文件夹和相对导入关系即可。可以先导入附带的 <code>examples/project_model</code>：模型与残差块在不同文件中，不含工厂函数。</p>
+<p>默认先尝试 <code>torch.export</code>，失败后尝试实际执行路径，最后尝试 FX。常见全连接、卷积、Embedding、原生多头注意力的输入会从模块属性推断，并通过一次真实 <code>forward</code> 验证。卷积示例空间尺寸依次尝试 8、16、32、64；这只是可执行的示例尺寸，不能据此推断原论文训练设置。网页「模型来源」会注明是否使用了自动推断输入。</p>
+<p>项目中与输入名称一致的形状字典也会作为候选依据，例如 <code>{"signal": (batch, n, 3)}</code>。应用只读取这些声明；符号维度用小尺寸示例尝试，并执行原始 <code>forward</code> 验证。相互冲突的声明不会直接采用。</p>
+<p><strong>尺寸无法确定时，无需为了打开结构图先写配置。</strong> 应用优先显示 FX 能确认的源码依赖，尺寸标为 <code>?</code>。若数据条件使 FX 也无法展开，则显示已注册模块的所属关系，保留 Python 函数、调用、条件和循环信息；此时不绘制猜测的数据流，不生成虚构的数值动效。需要实际数值时，再按下方方式补充一组示例输入。</p>
+<p>总览按源码作用域和实际模块调用分组。点击模块查看组成；「数学结构」展示向量、矩阵与功能单元。右侧说明保留捕获调用的源码位置。模型类名和属性名用于标注，不作为识别某种模型的规则。</p>
+<p>显示层级有三个选项：</p>
+<ul>
+<li><strong>功能架构</strong>：查看模块组成与数据通路。</li>
+<li><strong>数学结构</strong>：查看投影、点积、门控、注意力、归一化和残差等设计内容。布尔取反、掩码准备、类型转换和内部布局整理不再占用独立架构层；其真实计算归入相关数学单元。点击单元聚焦并查看说明。</li>
+<li><strong>底层调用 · 调试</strong>：查看完整捕获步骤，包括布尔取反、填充、重排和校验。需要核对实现时再打开。</li>
+</ul>
+<p>点积需要同时有相乘与向量轴求和的依据。单独的通道乘积保留乘积或门控含义；残差需要拓扑与形状证据。权重、偏置和真实张量始终可追溯。源码辅助函数的实际调用范围也用于分组，导入的多文件函数采用同一规则。</p>
+<p>工程步骤的隐藏只改变显示。因果注意力的可见范围、有效数据条件、专家路由等有数学意义的约束仍属于对应模块；特征拼接、特征分组及空间特征向量化也会保留。高斯分布显示均值和方差的数学含义，参数广播不单独展开。</p>
+<h3 id="_1">查看模型输入</h3>
+<p>点击画面上方「模型输入」，打开右侧说明。这里列出原始 <code>forward</code> 签名、必需与可选参数、默认值、张量类型、嵌套结构及源码用途。3D 中的输入使用源码参数名；字典和列表保留路径，例如 <code>samples['images'][0]</code>。</p>
+<ul>
+<li><code>[1 × 8 × 3]</code> 是本次实际捕获的尺寸；<code>[batch × n × 3]</code> 是源码形状声明，并附来源位置。示例尺寸不代表训练尺寸。</li>
+<li><code>?</code> 表示尚未确认；应用继续显示能确认的源码结构。</li>
+<li>对 <code>valid=None</code> 等可选参数，若源码明确写出了生成逻辑，面板会列出默认表达式及其依赖输入。</li>
+<li>数字、布尔开关和字符串也列在接口中。只执行了一条动态分支时，说明与图均对应这次捕获。</li>
+<li>旧 JSON 没有函数签名信息时仍可使用；重新导入源码即可得到完整输入说明。</li>
+</ul>
+<p>3D 标注是结构近侧的悬空文字，没有水晶底板；位置和朝向固定在模型空间中。转动模型时文字与结构一起转动。仍可切换全部、按需或隐藏标注。</p>
+<h3 id="_2">模型需要参数、多个候选或特殊输入时</h3>
+<p>应用先自动查找入口，读取源码中的构造调用、配置类默认值和输入示例，再结合 PyTorch 模块约束验证输入。能确定的内容直接采用，正常导入无需填写表单。输入尺寸暂时未知时，先展示可确认结构，仍可继续浏览。</p>
+<p>只有自动解析仍无法继续时，界面才提示尚未解决的问题。点击「确认未确定的入口」或「补充未确定信息」进行排查：</p>
+<ol>
+<li><strong>入口存在真实歧义</strong>：只确认目标类，后续构造参数和输入仍由应用继续解析。</li>
+<li><strong>缺少构造信息</strong>：只补充无法从源码或默认值确定的参数；已确定的参数保留。</li>
+<li><strong>指定输入未通过验证</strong>：调整该输入的尺寸、类型或内容，也可恢复自动推断。Token ID 的随机整数上限应小于或等于词表大小。</li>
+<li>点击 <strong>「应用并重新捕获」</strong>。网页地址保持不变，完成后自动更新。失败时保留上一份有效模型。</li>
+</ol>
+<p>「模型库 → 连接本地 IDE → 导入排查」保留主动检查和覆盖设置的入口；正常使用无需打开。源码中存在冲突的构造配置时，应用会明确保留歧义，不按类名或参数量随意选择。</p>
+<p>输入尺寸用 <code>1, 3, 32, 32</code> 这样的形式填写。字典、列表和配置对象通过字段控件组合，不需要编辑 JSON。示例输入单个最多 200 万元素；实际计算默认预算为 2500 万参数与缓冲元素。「捕获与内存设置」可修改捕获接口和预算。未带字段类型的特殊第三方配置对象仍可能需要仓库原有的构造函数。</p>
+<p>故障排查中补充的设置按项目保存在 <code>%LOCALAPPDATA%\SiliconDevine\import-profiles</code>，再次导入时沿用。原有 <code>silicondevine.json</code> 和启动器「导入旧配置…」继续兼容，用户设置优先。自动发现的旧配置损坏时会记录原因并继续解析源码；主动指定的配置无法读取时才提示排查。</p>
+<h3 id="_3">出现问题时</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>界面提示</th>
+<th>处理方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>缺少依赖</td>
+<td>查看缺失模块和当前 Python 路径。点击启动器「切换环境」，或复制提示的安装命令到对应终端执行，再重试。应用不会自动安装。</td>
+</tr>
+<tr>
+<td>项目导入路径不完整</td>
+<td>选择包含该包的仓库根目录，保留原目录结构。</td>
+</tr>
+<tr>
+<td>示例输入未通过验证</td>
+<td>打开表单调整输入尺寸、类型或内容，也可切回自动推断先看结构。</td>
+</tr>
+<tr>
+<td>模型超过计算预算</td>
+<td>减小构造参数中的研究尺寸，或根据内存调整预算。</td>
+</tr>
+<tr>
+<td>捕获超时</td>
+<td>在启动器高级设置中增大「捕获时限」，范围为 10–3600 秒，然后重新启动。</td>
+</tr>
+<tr>
+<td>代码语法错误或文件缺失</td>
+<td>按提示中的文件、行号或缺失路径修复并保存。</td>
+</tr>
+</tbody>
+</table></div>
+<p>完整错误保存在「技术详情」或启动器「运行日志」中，日常处理先看问题标题和对应操作。</p>
+<p>自动导入运行构造器与前向过程，应使用你信任的模型项目。静态扫描不执行仓库脚本；捕获会正常导入选中类及其依赖，因此这些文件的顶层代码仍会运行。不会自动安装依赖、下载检查点或启动训练；权重为构造器初始化状态。要加载现有权重，可继续使用下面的显式入口。</p>
+<p>自动化范围：支持普通 PyTorch 包、相对导入、跨文件继承、子模块组合，以及可通过本地绝对导入确定根目录的命名空间包（没有 <code>__init__.py</code>）。动态注册产生的类、无法定位根目录的命名空间包、需要设备/外部资源的构造器、无法进行 meta 预检的模型，以及自定义编译算子可能需要明确入口或适配。多个独立候选不会擅自任选；缺少配置时也不会伪造架构。<code>execution</code> 记录本次输入实际经过的路径，不包含未执行分支。</p>
+<h3 id="mmhvae-network">导入 MMHVAE 的 network 目录</h3>
+<p>总览中的并行编码分支采用环形立体塔。四座编码塔分别对应 US、T2、CET1、FLAIR，每一层是该模态对应 Block 的真实输出；编码路径向上压缩，中心生成路径向下展开。各自的后验概率头独立显示，图中连线保留原来的调用与参数共享关系。点击塔身或概率头继续展开。</p>
+<p>概率头用均值 μ、方差 σ²说明分布。MMHVAE 源码实际预测对数标准差 ℓ，再通过 σ²=exp(2ℓ) 得到方差；传给 PyTorch Normal 的第二个参数是标准差 σ。概率图展示坐标 0 的实际均值和方差，曲线横轴覆盖 μ±3σ、纵轴为归一化密度。PoE 说明保留仓库按标准差倒数融合的实际公式。编码 Block 与解码 Block 按源码分别展示，前者为双卷积残差结构，后者含扩张与深度卷积。</p>
+<p>重新导入后，默认进入「功能架构」：四个模态编码分支 → 顶层概率编码与 PoE → 六级条件潜变量生成 → 四个图像解码分支。点击模块继续展开，右上角「上一级」返回。编码残差块内显示实际 InstanceNorm、SiLU、卷积、通道注意力和残差相加；权重与偏置沿用基础算子的显示方式。</p>
+<p>模块索引只列出总览和当前层的入口。切换「底层调用 · 调试」可查看该模块全部捕获步骤，包括架构视图收起的校验分支。分组依据是 Python 源码位置、实际函数调用、已执行的循环和 PyTorch 模块路径。旧 JSON 不含新增的调用边界信息，需要重新导入源码目录；已有的矩阵和注意力识别仍可使用。</p>
+<p>选择 <code>D:\WUDAN_RESEARCH_1\MMHVAE\network</code>，高级设置保持 <code>auto</code>，入口和配置文件留空。应用会静态读取仓库 <code>inference.py</code> / <code>train.py</code> 中的 argparse 默认参数和主模型构造调用，不运行训练或推理脚本。对于可确定的默认条件分支，自动选择对应模型并生成多模态字典输入；来源文件、行号和实际构造参数保存在网页「代码来源与识别依据」中。</p>
+<p>当前仓库默认选择 <code>network.mhvae:MHVAE2D</code>，使用 us / t2 / cet1 / flair 四模态，空间尺寸 192×192、6 次下采样、7 级潜变量；可视化示例 Batch 为 1，权重由原始构造器初始化，未自动加载 pretrained 检查点。该模型的运行时断言不能直接通过 export，因此会回退到 execution。未支持的算子保留真实输入输出边界。</p>
+<p>普通仓库也可复用这一机制：只解析字面量默认参数、简单条件和构造器关键字参数。不能唯一确定时，通过导入表单选择和补充。表单设置优先；保存代码、修改设置或点击重试均会触发重新捕获。Windows 日志统一使用 UTF-8。</p>
+<p>PyTorch 捕获本身需要模型实例和示例输入，接口边界见 <a href="https://docs.pytorch.org/docs/2.9/export.html">torch.export</a>；无存储的参数尺寸预检使用 <a href="https://docs.pytorch.org/docs/2.9/meta.html">meta device</a>。</p>
+<h3 id="_4">命令行导入与静态检查</h3>
+<pre><code class="language-powershell"># 只列出文件、导入依赖和候选类；不执行仓库代码
+python -m silicondevine.discovery D:\MyModels\repository
+
+# 自动导入目录，并提供完整网页
+python -m silicondevine.watch D:\MyModels\repository --static-dir D:\SiliconDevine.js\demo-dist
+
+# 多文件选择；相对导入的本地依赖也会被扫描
+python -m silicondevine.watch D:\MyModels\network.py D:\MyModels\blocks.py --entry network:MyModel --static-dir D:\SiliconDevine.js\demo-dist
+</code></pre>
+<h3 id="_5">显式构造：精确控制输入和权重</h3>
 <p>新建 <code>D:\MyModels\my_model.py</code>，复制以下完整示例：</p>
 <pre><code class="language-python">import torch
 from torch import nn
@@ -38,7 +137,7 @@ def build_model():
 </ol>
 <p>框架运行一次前向计算，记录本次输入对应的形状与数值。已有权重可在 <code>build_model()</code> 返回前通过 <code>load_state_dict()</code> 加载。工厂函数中不要启动训练、启动服务或调用 <code>show()</code>。</p>
 <p>更换文件或环境前，先停止服务。捕获失败时保留上一份有效图，错误会显示在界面上；修正代码并再次保存即可。</p>
-<h3 id="_1">多输入、关键字参数与捕获设置</h3>
+<h3 id="_6">多输入、关键字参数与捕获设置</h3>
 <p><code>args</code> 对应 <code>forward</code> 的位置参数，<code>kwargs</code> 对应关键字参数。下面是工厂函数的另一种返回格式；<code>model</code>、<code>x</code>、<code>context</code>、<code>mask</code> 使用你实际创建的对象：</p>
 <pre><code class="language-python">return {
     &quot;model&quot;: model,
@@ -99,7 +198,7 @@ finally:
 <p>不使用启动器也能监视文件：</p>
 <pre><code class="language-powershell">D:\Anaconda3\python.exe -m silicondevine.watch D:\MyModels\my_model.py --backend execution --static-dir D:\SiliconDevine.js\demo-dist
 </code></pre>
-<p>监视器同时检查模型目录中的 Python 文件。建议给模型建立独立目录；配置 JSON 改动后，重新保存入口 Python 文件触发更新。默认端口为 5182，被占用时添加 <code>--port 5183</code>。启动器会自动寻找空闲端口。</p>
+<p>监视器同时检查模型目录中的 Python 文件及导入设置。建议给模型建立独立目录；保存代码或提交表单后自动更新。默认端口为 5182，被占用时添加 <code>--port 5183</code>。启动器会自动寻找空闲端口。</p>
 <h2 id="5-json">5. 导出 JSON，离线查看或分享</h2>
 <pre><code class="language-python">from silicondevine import export_model
 
@@ -160,7 +259,7 @@ export_model(
 <li>界面播放的动效用于解释捕获的数值与依赖，播放速度不等于实际计算耗时。</li>
 </ul>
 <p>张量尺寸来自代码。要改变自己模型的 Batch、通道或 Token 数，请修改输入和模型代码，再保存；网页里的参数控件只用于支持重建的内置示例。</p>
-<h3 id="_2">旋转、平移和缩放</h3>
+<h3 id="_7">旋转、平移和缩放</h3>
 <ul>
 <li><strong>左键拖动</strong>旋转；<strong>右键或 Shift + 拖动</strong>平移。点击工具栏「平移」后，左键也用于平移，再点一次恢复旋转。</li>
 <li><strong>滚轮／双指捏合</strong>围绕当前观察中心缩放。触屏单指旋转，双指可同时平移和缩放；「平移」模式支持单指平移。</li>
@@ -177,6 +276,10 @@ export_model(
 <li>查看实际计算：选择能在本机运行的子模块和小输入，交给 <code>export_model</code> 或工厂函数；若要观察已有权重，自己加载对应权重。框架不会自动缩小任意模型。</li>
 </ul>
 <p>显示预算只限制绘图开销，不限制 PyTorch 执行内存。大模型的复制、加载与前向计算仍可能占用大量内存；无须为查看内置示例下载完整权重。</p>
+<h3 id="_8">怎样阅读多分支模型</h3>
+<p>默认先打开功能架构。互不依赖的分支可排成环形计算塔；每层水晶对应实际中间张量。点击塔进入内部模块，再用「数学结构」查看设计细节；「底层调用 · 调试」保留完整执行节点。</p>
+<p>银白边界标出结构归属，淡黄色提示当前选中区域。权重与数据的托板颜色有所区分，水晶内部颜色仍表示数值。卡片固定在结构近侧；可用「按需标牌／全部标牌」调整可见数量。</p>
+<p>修改代码后需要重新捕获，旧 JSON 不会自动生成新增的源码分层信息。若缺少源码或模型依赖输入动态选择路径，图只表达本次能够确认的调用和分支。</p>
 <h2 id="8">8. 常见问题</h2>
 <div class="table-scroll"><table>
 <thead>
@@ -192,7 +295,7 @@ export_model(
 </tr>
 <tr>
 <td>网页打开但没有模型</td>
-<td>查看服务错误；确认 <code>build_model()</code> 返回 <code>(model, args)</code>，并且服务仍在运行。</td>
+<td>按问题提示选择入口或补充参数；已有工厂入口需要返回 <code>(model, args)</code>。</td>
 </tr>
 <tr>
 <td>FX 报控制流错误</td>
@@ -212,7 +315,7 @@ export_model(
 </tr>
 <tr>
 <td>保存后仍是旧图</td>
-<td>捕获失败会保留旧图；查看错误。改 JSON 后重新保存入口 <code>.py</code> 文件。</td>
+<td>捕获失败会保留旧图；按界面提示修正并重试，或保存模型代码。</td>
 </tr>
 <tr>
 <td>更新后仍看到旧界面</td>

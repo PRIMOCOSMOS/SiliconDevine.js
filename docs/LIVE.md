@@ -5,7 +5,7 @@
 
 ## 应用入口
 
-双击 start-app.cmd，选择模型文件、工厂函数（默认 build_model）、捕获接口及已安装 PyTorch 的 Python 环境，点击启动。自动选择空闲本机端口并打开网页。停止或关闭只影响此启动器拥有的服务。设置保存在 %LOCALAPPDATA%/SiliconDevine/launcher.json。
+双击 SiliconDevine.exe，导入模型目录或一组 Python 文件，选择已安装模型依赖的 Python 环境。默认 auto 负责扫描依赖、识别入口、提取构造配置和验证输入；会读取源码中的构造示例、配置类默认值及命令行默认设置。正常导入无需填写表单，只有无法消除的歧义或缺项才提供故障排查入口。确认缺项后，应用继续自动处理其余步骤。已有工厂函数仍可在高级设置指定。启动后自动选择空闲本机端口并打开网页。停止或关闭只影响此启动器拥有的服务。启动器设置保存在 %LOCALAPPDATA%/SiliconDevine/launcher.json，排查中补充的设置按项目存放在 import-profiles 子目录。
 
 启动器使用 Python 自带 Tkinter。工作台已经构建在 demo-dist，不需运行 Node。启动器 Python 和模型 Python 可以不同，不会自动安装或改变环境。更换模型或环境时先停止，再启动。
 

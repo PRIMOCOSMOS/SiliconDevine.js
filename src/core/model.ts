@@ -24,6 +24,8 @@ export interface Tensor {
     specialValues?: Record<number, '-inf' | '+inf' | 'nan'>;
     axes?: string[];
     semantic?: string;
+    inputParameter?: string;
+    inputPath?: string;
 }
 export interface Operation {
     id: string;
@@ -37,6 +39,21 @@ export interface Operation {
     source?: string;
 }
 export interface Model {
+    inputContract?: {
+        signature:string;source?:{file:string;line:number}|null;dimensions?:string;
+        parameters:{name:string;required:boolean;kind:string;status:string;annotation?:string;
+            default?:unknown;defaultExpression?:string;derivedFrom?:string[];sourceUses?:string[];
+            symbolicShape?:Dimension[];shapeSource?:{file:string;line:number};shapeEvidence?:string;
+            generatedTensors?:string[];
+            structure:InputStructure;tensors?:{id:string;path:string;shape:Dimension[];dtype:string;consumers?:{name:string;op:string}[]}[]}[];
+    };
+    designUnits?: {id:string;kind:string;name:string;nodes:string[];source:{file:string;line:number;code?:string};description:string;evidence:string}[];
+    composition?: {
+        roots: string[];
+        units: {id:string;name:string;nodes:string[];children:string[];source:unknown;visual?:Record<string,unknown>}[];
+        hiddenDiagnostics: number;
+        evidence: string;
+    };
     executionRef?: string;
     executionScope?: string;
     mechanismRef?: string | null;
@@ -61,6 +78,7 @@ export interface Model {
     };
     notes?: string[];
     provenance?: Record<string, unknown>;
+    discovery?: { entry: string; inputsInferred: boolean; exampleInputs: unknown; parameterCount: number; backend: string; weights: string; files: { path: string; module: string; sha256: string; imports: string[] }[]; [key: string]: unknown };
     functionalUnits?: Record<string, unknown>[];
     constraints?: Record<string, string>;
     modules?: {
@@ -78,6 +96,7 @@ export interface Model {
         available: string[];
     };
 }
+export interface InputStructure {kind:string;path:string;shape?:Dimension[];dtype?:string;type?:string;value?:unknown;children?:InputStructure[]}
 export function numel(shape: Dimension[]): number | undefined {
     if (shape.some(n => typeof n !== 'number'))
         return undefined;
@@ -164,6 +183,27 @@ export function validateModel(input: unknown): Model {
     [...m.inputs, ...m.outputs].forEach(exists);
     if(m.stages&&(m.stages.length>24||m.stages.some(s=>typeof s.name!=='string'||!Array.isArray(s.nodes)||s.nodes.some(id=>!ids.has(id)))))throw Error('计算阶段无效。');
     topologicalNodes(m);
+    if(m.inputContract){
+        const c=m.inputContract;
+        if(typeof c.signature!=='string'||!Array.isArray(c.parameters)||c.parameters.length>128)throw Error('模型输入接口无效。');
+        let parts=0;
+        const check=(s:InputStructure,depth=0)=>{
+            if(!s||depth>16||++parts>4096||typeof s.kind!=='string'||typeof s.path!=='string'||
+                s.shape&&(!Array.isArray(s.shape)||s.shape.some(d=>typeof d!=='string'&&(typeof d!=='number'||!Number.isSafeInteger(d)||d<0))))throw Error('模型输入结构无效。');
+            if(s.children){if(!Array.isArray(s.children))throw Error('模型输入结构无效。');s.children.forEach(child=>check(child,depth+1));}
+        };
+        for(const p of c.parameters){
+            if(typeof p.name!=='string'||typeof p.required!=='boolean'||!['provided','default','unresolved'].includes(p.status))throw Error('模型输入参数无效。');
+            check(p.structure);
+            if(p.sourceUses&&(!Array.isArray(p.sourceUses)||p.sourceUses.length>32||p.sourceUses.some(s=>typeof s!=='string')))throw Error('模型输入用途无效。');
+            if(p.tensors){if(!Array.isArray(p.tensors)||p.tensors.length>4096)throw Error('模型输入张量无效。');p.tensors.forEach(t=>{
+                exists(t.id);if(t.consumers&&(!Array.isArray(t.consumers)||t.consumers.some(c=>typeof c.name!=='string'||typeof c.op!=='string')))throw Error('模型输入用途无效。');
+            });}
+        }
+    }
+    if(m.designUnits){
+        if(!Array.isArray(m.designUnits)||m.designUnits.length>50000||m.designUnits.some(u=>!Array.isArray(u.nodes)||u.nodes.length>10000||u.nodes.some(id=>!ids.has(id))||typeof u.name!=='string'||typeof u.kind!=='string'||typeof u.description!=='string'))throw Error('数学单元定义无效。');
+    }
     if (m.architecture) {
         const a=m.architecture, keys=Object.keys(a.scopes ?? {});
         if(a.mode!=='structure' || !keys.includes(a.entry) || keys.length>128 || !/^\d{1,30}$/.test(a.parameterCount)) throw Error('结构模板元数据无效。');
@@ -196,6 +236,23 @@ export function validateModel(input: unknown): Model {
         const done=new Set<string>(), active=new Set<string>();
         const visit=(key:string,depth=0)=>{if(active.has(key)||depth>32)throw Error('模板引用循环或过深。');if(done.has(key))return;active.add(key);for(const n of a.scopes[key].nodes)if(n.attrs?.scopeRef)visit(String(n.attrs.scopeRef),depth+1);active.delete(key);done.add(key);};
         keys.forEach(k=>visit(k));
+    }
+    if(m.composition){
+        const c=m.composition;
+        if(!Array.isArray(c.units)||c.units.length>50000||!Array.isArray(c.roots))throw Error('源码层级定义无效。');
+        const units=new Map(c.units.map(u=>[u.id,u]));
+        if(units.size!==c.units.length)throw Error('源码层级 ID 重复。');
+        let membership=0;
+        for(const u of c.units){
+            if(typeof u.id!=='string'||!u.id.startsWith('@source.')||typeof u.name!=='string'||!Array.isArray(u.nodes)||!Array.isArray(u.children)||!u.nodes.length)throw Error('源码模块定义无效。');
+            membership+=u.nodes.length;if(membership>1000000||u.nodes.some(id=>!ids.has(id)))throw Error('源码层级引用无效或超过预算。');
+            if(u.children.some(id=>!units.has(id)))throw Error('源码子模块缺失。');
+            if(u.children.length){const child=u.children.flatMap(id=>units.get(id)!.nodes),own=new Set(u.nodes);if(new Set(child).size!==child.length||child.length!==own.size||child.some(id=>!own.has(id)))throw Error('源码子模块必须完整且互不重叠。');}
+        }
+        const visiting=new Set<string>(),done=new Set<string>();
+        const visit=(id:string,depth=0)=>{if(!units.has(id)||visiting.has(id)||depth>64)throw Error('源码层级循环或缺失。');if(done.has(id))return;visiting.add(id);units.get(id)!.children.forEach(k=>visit(k,depth+1));visiting.delete(id);done.add(id);};
+        c.roots.forEach(id=>visit(id));
+        const roots=c.roots.flatMap(id=>units.get(id)!.nodes);if(new Set(roots).size!==roots.length)throw Error('源码根模块重叠。');
     }
     return m;
 }

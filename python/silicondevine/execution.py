@@ -10,16 +10,29 @@ def normalize_execution(c,node,result,op,attrs):
         if target in ('aten.min.default','aten.max.default'):attrs.update(dims=list(range(c.env[node.args[0]].ndim)),keepdim=False)
         return aliases[target]
     names={'aten.topk.default':'topk','aten.index.Tensor':'index','aten.index_add_.default':'index_add',
-           'aten.scatter_.value':'scatter','aten.bitwise_not.default':'not','aten.masked_fill.Scalar':'masked_fill',
+           'aten.scatter_.value':'scatter','aten.bitwise_not.default':'not','aten.masked_fill.Scalar':'masked_fill','aten.masked_fill_.Scalar':'masked_fill',
            'aten.one_hot.default':'one_hot','aten.where.default':'nonzero','aten.nonzero.default':'nonzero',
            'aten.unbind.int':'unbind','aten.zeros.default':'constant','aten.zeros_like.default':'constant','aten.full.default':'constant'}
     if target=='aten.concat.default':
         attrs['dim']=int(node.args[1]) if len(node.args)>1 else 0
         return 'concat'
-    if target not in names:return op
-    args=fx.map_arg(node.args,lambda n:c.env[n]);kind=names[target]
+    fx_names={'invert':'not','masked_fill':'masked_fill','masked_fill_':'masked_fill'}
+    kind=names.get(target) or fx_names.get(getattr(node.target,'__name__',node.target))
+    if not kind:return op
+    args=fx.map_arg(node.args,lambda n:c.env[n])
+    kwargs=fx.map_arg(node.kwargs,lambda n:c.env[n])
     outputs=list(result) if isinstance(result,(tuple,list)) else [result]
+    attrs['routingKind']=kind
+    if kind=='masked_fill':
+        value=float(args[2] if len(args)>2 else kwargs['value'])
+        if value!=0 and torch.isfinite(torch.tensor(value)):
+            attrs['fillConstant']=c.tensor(torch.tensor(value,dtype=result.dtype),node.name+':fill','constant')[0]
     if sum(v.numel() for v in outputs)>4096:
+        if kind in ('not','masked_fill'):
+            # These maps have a simple coordinate formula. The browser evaluates
+            # only visible coordinates, without allocating a full index table.
+            attrs['analyticCoordinates']=True
+            return 'routing_'+kind
         attrs['boundary_reason']='Routing coordinate map exceeds 4096 output elements';return 'opaque'
     refs=lambda arg:c.deps(arg)[0]
     def dep(arg,i,weight=None):
@@ -54,7 +67,11 @@ def normalize_execution(c,node,result,op,attrs):
         selected=[int(grid[tuple(co.tolist())]) for co in coords]
         maps=[[[dep(node.args[0],selected[i if isinstance(result,tuple) else i//coords.shape[1]])] for i in range(v.numel())] for v in outputs]
     elif kind=='masked_fill':
-        mask=args[1].expand_as(args[0]).flatten();maps=[[[dep(node.args[0],i,1)] if not mask[i] else [] for i in range(result.numel())]]
+        mask=(args[1] if len(args)>1 else kwargs['mask']).expand_as(args[0]).flatten()
+        # A finite nonzero fill contributes to downstream matrix operations.
+        # Preserve that fixed value when preparation is absorbed by the view.
+        fixed=attrs.get('fillConstant')
+        maps=[[[dep(node.args[0],i,1)] if not mask[i] else [{'tensor':fixed,'index':0,'weight':1}] if fixed else [] for i in range(result.numel())]]
     elif kind=='scatter':
         x,dim,idx,value=args[:4];grid=torch.arange(x.numel()).reshape(x.shape);dest=set(grid.gather(dim,idx).flatten().tolist())
         maps=[[[dep(node.args[0],i,1)] if i not in dest else [] for i in range(result.numel())]]

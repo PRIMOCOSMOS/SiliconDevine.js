@@ -4,9 +4,9 @@
 
 **开始使用：[统一使用说明](docs/USER_GUIDE.md)** · [浏览器阅读版](docs/QUICKSTART.html) · [文档目录](docs/INDEX.md)
 
-在本项目文件夹中双击 `SiliconDevine.exe`，选择模型文件和 Python 环境，点击「进入模型空间」。保存代码后网页自动更新。EXE 需要同目录资源；日常使用无需 Node。
+在本项目文件夹中双击 `SiliconDevine.exe`，导入模型目录或多个 `.py` 文件，选择 Python 环境，点击「进入模型空间」。应用自动发现模型类、分析本地依赖并验证示例输入；无需固定函数名。保存代码后网页自动更新。EXE 需要同目录资源；日常使用无需 Node。
 
-模型文件最小示例：
+多文件示例可直接导入 `examples/project_model`。应用先从源码构造调用、配置默认值和示例输入自动解析；只有仍无法确定的入口或参数才需要界面补充。依赖缺失会显示具体模块、Python 环境与处理入口。已有工厂入口仍可使用，例如：
 
 ```python
 import torch

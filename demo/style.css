@@ -37,3 +37,25 @@ body[data-presentation=true] .workspace{grid-template-rows:minmax(96px,auto) min
 }
 /* Camera controls retain clear state alongside the computation controls. */
 .controls #pan-mode[aria-pressed=true]{background:#cedfea;color:#102333}.controls #camera-view{max-width:85px}.controls{flex-wrap:wrap}
+
+/* Industrial precision: architecture signals stay distinct from tensor colors. */
+.stage-dock{border-top:1px solid #7d8d93;background:linear-gradient(140deg,#242d34,#11171c);border-radius:16px}
+.navigation select:focus-visible,.controls button:focus-visible{outline:2px solid #e6ea85;outline-offset:3px}
+.controls #play{background:#e4e9db;color:#17201f}.controls #pan-mode[aria-pressed=true]{background:#e6ea85;color:#202719}
+.toolbar{border-bottom:1px solid #a3b8bd18}
+
+/* Input signatures remain readable in the dock, away from 3D annotations. */
+.inspector #model-inputs{scroll-margin-top:18px;outline-offset:4px}
+.inspector .input-signature,.inspector .input-expression{font:12px/1.7 Consolas,monospace;color:#e2e9ed;white-space:pre-wrap;overflow-wrap:anywhere}
+.inspector .input-note{color:#becdd6;margin:8px 0 20px}
+.input-parameter{padding:17px 0;border-top:1px solid #344149}
+.input-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.input-heading strong{font-size:15px;font-weight:600;overflow-wrap:anywhere;min-width:0}
+.input-heading span{font-size:11px;color:#c9d6bf;text-align:right;flex-shrink:0}
+.inspector .input-leaf p{margin:5px 0;font-variant-numeric:tabular-nums;color:#e1ebee}
+.inspector .input-leaf code{font:12px/1.6 Consolas,monospace;margin-top:10px}
+.inspector .input-source{font-size:10px;line-height:1.6;color:#adbdc6}
+.inspector .input-dimensions,.inspector .input-usage{margin:5px 0;font-size:11px}
+.input-parameter details{margin-top:10px}.input-parameter summary{font-size:11px;color:#c5d2da;cursor:pointer}
+.input-parameter .input-expression{padding:7px 0}.input-parameter .input-annotation{font-size:11px}
+@media(max-width:760px){.input-heading{flex-wrap:wrap;gap:5px}.input-heading span{text-align:left}.navigation #inputs-toggle{margin-left:0}}

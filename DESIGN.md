@@ -247,3 +247,42 @@ Explicit focus uses a 720ms quartic ease-out camera flight. Orbit interaction or
 Composite geometry contains only its dependency skeleton. Its explanation lives in one nearby world-space typographic plate. Parallel branches share a row, sequential stages retain reading order; repetition combines a compact sequence with three translucent receding sections and an exact independent-instance count. Ghost sections represent repeated templates, not sampled numeric tensors or tied weights.
 
 Both side lanes are available for repeated blocks. Annotation scaling targets readable screen size, with collision checks against tensor and composite volumes. Hover shows only the relevant region; all/none controls remain. Provenance and active-region text share normal document flow under the title, with no absolute offsets. Navigation wraps on narrow or inspector-constrained widths.
+
+## Industrial precision in the model stage (2026-10-08)
+
+The reference imagery contributes an abstract visual grammar: silver registration marks, segmented circular boundaries, quiet graphite surfaces and a restrained yellow selection signal. No scenery, fictional machines, logos or decorative data are imported.
+
+`src/render/industrialTheme.ts` owns architectural colors. Numerical colors stay in the existing numerical palette. Tensor plates distinguish weights from activations; ownership frames use open corners and three registration ticks. Independent branch towers use broken orbital arcs around actual intermediate activation tensors. All tower rails and ticks are batched into one draw with a shared animation clock. Motion emphasizes the active module only.
+
+Captions remain fixed in model coordinates beside their tensors. Their size is chosen once for the scope, with automatic visibility filtering; rotating the camera never repacks their anchors. Architecture rules use executed dependencies and source scopes, without model-name or encoder/decoder-field switches. Small models with captured composition open in architecture view as well.
+
+
+### Machined metal supports (2026-10-09)
+
+Metal is expressed through opaque geometry and reflected light. Each tensor rests inside a bevelled silver rim with a darker lower flange. Parameter rims use warm alloy; activation rims use cool aluminium. The middle remains open and the numerical crystals remain transparent. A shared prefiltered studio reflection map is created once per viewer; the model stage does not display a room or image background. Subtle roughness grain and directional lighting reveal the bevel as the camera rotates.
+
+All rims in one scope share one instanced draw, one rounded geometry and one physical material. Selected ownership changes instance colors without making metal transparent. Scene disposal releases the studio target; scope changes release rim geometry and roughness textures. No global tone mapping is added, preserving the existing unlit value colors.
+
+### Fixed world-space typography (2026-10-09)
+
+Annotations are transparent text geometry beside each tensor, with no backing crystal, metal slab or leader line. A small registration accent aligns with the near edge. Both position and orientation are fixed in model coordinates; camera movement never repacks or billboards the text. Visibility filtering remains separate from anchoring. Reflective metal belongs to tensor supports, while annotation glyphs remain unlit for contrast.
+
+### Mathematical structure for architecture designers (2026-10-13)
+
+Architecture and mathematical structure are the primary views. Mathematics stops at meaningful functions, vectors and matrices: projection, dot product, channel gating, attention, normalization and residual connection. Concrete Python helper invocations form source-backed units. Masks and coordinate preparation belong to their functions. A multiply is only a dot product when its captured vector-axis reduction proves that interpretation.
+
+Clicking a mathematical unit focuses it and shows its explanation. The separate raw-call view exposes implementation steps for debugging. Aggregation preserves captured tensors, external consumers and parameter indices; reorganizing a projected vector retains its W-line correspondence and bias. Motion labels use the visible mathematical function rather than renderer implementation names.
+
+Engineering preparation is absent as a standalone layer in default views. Its captured children and coordinate provenance belong to the mathematical consumer, retaining that consumer's own visual operator and parameters. Data validity and causal visibility remain functional constraints; routing, feature concatenation and Gaussian distributions retain design meaning. Scope boundaries may expose captured effective inputs without inventing an operator or replacing their values.
+
+The docked Model Inputs section presents the Python calling contract independently of the selected scope. Input labels use bound argument names and pytree paths, including aliased tensors, keyword arguments and nested containers. Concrete example dimensions, source symbols, optional defaults and unknown dimensions remain distinct. Input explanation never overlays the 3D model.
+
+### Guided import recovery (2026-10-14)
+
+Automatic parsing owns the import workflow. It reads module relationships, unique construction examples, annotated configuration defaults, command-line defaults and example forward inputs before considering a form. Generated examples pass the real PyTorch forward. Conflicting source evidence remains explicit ambiguity.
+
+Blocked imports offer an inline recovery action, without automatically opening a modal. The form asks only unresolved constructor fields or the failed input; it preserves resolved settings. Confirming an ambiguous entry resumes automatic parsing. The quiet Import Diagnostics action lives within the IDE connection section. A usable structural view with unknown dimensions never triggers a supplementary form or request banner. Failed recaptures preserve the last graph. Technical details stay secondary.
+
+The native launcher shows dependency names, its selected interpreter, environment switching and copyable installation instructions. Installation remains explicit in the user's terminal. Recovery controls appear before configuration fields; status and primary actions remain visible below. Per-project forms persist in application data and update the current local server. Writes require same-origin requests and a per-session token; the read-only SDK bridge stays read-only.
+
+Finish review: desktop and 430px forms, inline input errors, keyboard controls, and native 100%/150% layouts checked. The validation message stays beside the sticky submit action. Existing visual identity and model geometry are unchanged.

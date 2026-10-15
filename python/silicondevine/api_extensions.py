@@ -27,7 +27,8 @@ def function_aliases():
         result.update({f'{mode}_pad{d}d':'pad' for d in (1,2,3)})
     result.update({'constant_pad_nd':'pad','_pad_circular':'pad'})
     result.update({name:'dropout' for name in ('dropout1d','dropout2d','dropout3d','feature_dropout','alpha_dropout','feature_alpha_dropout')})
-    result.update({name:name for name in ('interpolate','gather','index_select','sum','amax','amin')})
+    result.update({name:name for name in ('interpolate','gather','index_select','sum','amax','amin','any','all','ne')})
+    result['eye'] = 'constant'
     result.update({name:'interpolate' for name in ('upsample_nearest1d','upsample_nearest2d','upsample_nearest3d','_upsample_nearest_exact1d','_upsample_nearest_exact2d','_upsample_nearest_exact3d','upsample_linear1d','upsample_bilinear2d','upsample_trilinear3d')})
     result.update({'grid_sample':'grid_sample2d','grid_sampler_2d':'grid_sample2d','grid_sampler':'grid_sample2d'})
     return result
@@ -51,7 +52,7 @@ def normalize(capture,node,module,op,attrs,parameters,inputs):
             attrs['boundary_reason']='训练态 Dropout 保留本次随机输出；不使用 eval 恒等映射。'
             return 'opaque'
     if op in ('gather','index_select'):attrs['dim']=arg(1,node.kwargs.get('dim',0))
-    if op in ('sum','amax','amin'):
+    if op in ('sum','amax','amin','any','all'):
         dims=arg(1,node.kwargs.get('dim',None))
         attrs['dims']=None if dims is None else [dims] if isinstance(dims,int) else list(dims)
         attrs['keepdim']=bool(arg(2,node.kwargs.get('keepdim',False)))
