@@ -10,7 +10,7 @@ const child=spawn('python',['-m','silicondevine.watch',file,'--port','5183','--s
 let log='';child.stdout.on('data',v=>log+=v);child.stderr.on('data',v=>log+=v);
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn){let error;for(let i=0;i<120;i++){try{const value=await fn();if(value)return value;}catch(e){error=e;}await wait(300);}throw error??Error('Timed out: '+log);}
-const browser=await chromium.launch({channel:'msedge',headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
+const browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||undefined,headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
 try{
  await until(async()=>{const r=await fetch('http://127.0.0.1:5183/api/status');return(await r.json()).ready;});
  const page=await browser.newPage({viewport:{width:1480,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));

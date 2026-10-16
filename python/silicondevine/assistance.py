@@ -33,14 +33,14 @@ def literal(value):
     raise TypeError('not a literal')
 
 
-def value_schema(value, depth=0):
+def value_schema(value, depth=0, *, tensors=True):
     if depth > 5: return {'kind': 'any'}
     if isinstance(value,dict) and '$tensor' in value:return {'kind':'tensor'}
     if isinstance(value, dict) and '$class' in value: return {'kind': 'object', 'class': value['$class']}
     if isinstance(value, dict) and '$namespace' in value: return {'kind': 'namespace'}
-    if isinstance(value, dict) and 'shape' in value: return {'kind': 'tensor'}
-    if isinstance(value, dict): return {'kind': 'mapping', 'children': [dict(name=str(k), required=True, value=v, **value_schema(v, depth+1)) for k,v in value.items()]}
-    if isinstance(value, list): return {'kind': 'sequence', 'children': [dict(name=str(i), required=True, value=v, **value_schema(v, depth+1)) for i,v in enumerate(value)]}
+    if tensors and isinstance(value, dict) and 'shape' in value: return {'kind': 'tensor'}
+    if isinstance(value, dict): return {'kind': 'mapping', 'children': [dict(name=str(k), required=True, value=v, **value_schema(v, depth+1, tensors=tensors)) for k,v in value.items()]}
+    if isinstance(value, list): return {'kind': 'sequence', 'children': [dict(name=str(i), required=True, value=v, **value_schema(v, depth+1, tensors=tensors)) for i,v in enumerate(value)]}
     return {'kind': 'boolean' if type(value) is bool else 'integer' if type(value) is int else 'number' if type(value) is float else 'text' if isinstance(value, str) else 'none' if value is None else 'any'}
 
 
@@ -85,18 +85,22 @@ def parameters(callable_, *, values=None, forward=False, depth=0):
     try: signature=inspect.signature(callable_)
     except (TypeError,ValueError): return []
     module=inspect.getmodule(callable_);namespace=vars(module) if module else {}
+    from .constructor_contract import parameter_constraints
+    constraints = {} if forward else parameter_constraints(callable_)
     result=[]
     for p in signature.parameters.values():
         if p.name=='self' or p.kind in (p.VAR_POSITIONAL,p.VAR_KEYWORD): continue
         required=p.default is p.empty
         spec=_annotation(p.annotation,namespace,depth)
+        if spec['kind'] == 'any' and p.name in constraints:
+            spec.update(constraints[p.name])
         value=values.get(p.name,p.default)
         item={'name':p.name,'required':required,'parameterKind':p.kind.name.lower(),
               'annotation':str(p.annotation) if p.annotation is not p.empty else '',**spec}
         if value is not p.empty:
             try:
                 item['value']=literal(value)
-                if spec['kind']=='any' and value is not None: item.update(value_schema(item['value']))
+                if spec['kind']=='any' and value is not None: item.update(value_schema(item['value'], tensors=forward))
             except TypeError: item['defaultDescription']=repr(value)[:180]
         item['enabled']=p.name in values
         result.append(item)

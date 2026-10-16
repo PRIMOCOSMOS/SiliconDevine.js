@@ -37,6 +37,7 @@ class LiveServer:
     def __init__(self, port=5182, static_dir=None, settings_path=None):
         self.static_dir = Path(static_dir) if static_dir else Path(__file__).resolve().parents[2] / 'demo-dist'
         self.lock = threading.RLock()
+        self.update_lock = threading.RLock()
         self.graph = None
         self.snapshot = None
         self.revision = 0
@@ -147,7 +148,7 @@ class LiveServer:
                                     value = struct.unpack('<d', data.read(8))[0]
                                     values.append(value if math.isfinite(value) else None)
                             return self.reply({'revision': server_state.revision, 'id': name, 'indices': indices, 'values': values})
-                        except (ValueError, KeyError, OSError) as exc:
+                        except (ValueError, KeyError, OSError, struct.error) as exc:
                             return self.reply({'error': str(exc)}, 400)
                 if route.path.startswith('/api/'):
                     return self.reply({'error': 'Unknown API.'}, 404)
@@ -165,6 +166,8 @@ class LiveServer:
 
     def publish(self, graph, snapshot=None):
         with self.lock:
+            if self.closed:
+                raise RuntimeError('模型服务已关闭。')
             graph['live'] = {'tensorWindows': bool(snapshot and snapshot.manifest), 'available': list(snapshot.manifest) if snapshot else []}
             self.graph, self.snapshot = graph, snapshot
             self.revision += 1
@@ -172,6 +175,12 @@ class LiveServer:
             self.import_options = graph.get('discovery',{}).get('importOptions')
 
     def update(self, model, args, **options):
+        # Serialize exports as well as publication: a slow earlier update must
+        # not retire a newer snapshot or overlap PyTorch capture hooks.
+        with self.update_lock:
+            return self._update(model, args, **options)
+
+    def _update(self, model, args, **options):
         directory = tempfile.mkdtemp(prefix='silicondevine-snapshot-')
         snap = Snapshot(directory, options.pop('snapshot_budget', 64 * 1024 * 1024))
         with self.lock:
@@ -182,11 +191,11 @@ class LiveServer:
             self.publish(graph, snap)
             if previous:
                 import shutil
-                shutil.rmtree(previous.directory)
+                shutil.rmtree(previous.directory, ignore_errors=True)
             return self
         except Exception as exc:
             import shutil
-            shutil.rmtree(directory)
+            shutil.rmtree(directory, ignore_errors=True)
             with self.lock:
                 self.error, self.loading = str(exc), False
             raise
@@ -199,6 +208,10 @@ class LiveServer:
             self.close()
 
     def close(self):
+        with self.update_lock:
+            self._close()
+
+    def _close(self):
         if self.closed:
             return
         self.closed = True

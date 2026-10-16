@@ -97,9 +97,11 @@ class DiscoveryTests(unittest.TestCase):
         config.write_text(json.dumps({'entry': 'modules:SAB', 'init': {'dim_in': 8, 'dim_out': 8, 'num_heads': 2, 'ln': True},
                                      'inputs': [{'shape': [1, 3, 8], 'fill': 'ones'}]}))
         graph = capture_project([source], self.root / 'upstream', config=config)
-        from modules import SAB
-        torch.manual_seed(0)
-        reference = SAB(8, 8, 2, ln=True).eval()(torch.ones(1, 3, 8)).detach()
+        from silicondevine.project_imports import project_imports
+        with project_imports(scan_project([source])):
+            from modules import SAB
+            torch.manual_seed(0)
+            reference = SAB(8, 8, 2, ln=True).eval()(torch.ones(1, 3, 8)).detach()
         output = next(t for t in graph['tensors'] if t['id'] == graph['outputs'][0])
         torch.testing.assert_close(torch.tensor(output['data']['values']).reshape(output['shape']), reference)
         self.assertTrue(any(n['op'] == 'softmax' for n in graph['nodes']))

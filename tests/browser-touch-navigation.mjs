@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE??'playwright');
-const browser=await chromium.launch({channel:'msedge',headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
+const browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||undefined,headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
 try{
  const page=await browser.newPage({viewport:{width:900,height:900},hasTouch:true});
  await page.goto(process.env.DEMO_URL??'http://127.0.0.1:5195');await page.waitForFunction(()=>window.siliconDevine?.viewer.nodes.length>0);await page.waitForTimeout(900);

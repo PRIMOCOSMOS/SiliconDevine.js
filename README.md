@@ -28,9 +28,15 @@ python -m pip install -e D:\SiliconDevine.js\python
 ## 开发
 
 ```powershell
-npm install
+npm ci
+python -m pip install -e './python[test]'
 npm run dev
 npm run build
+npm test
 ```
 
-前端构建输出为 `dist` 与 `demo-dist`。Python 接口在 `python/silicondevine`，渲染器在 `src/render`，图格式与算子在 `src/core`。版本 0.7.1；本地已验证环境：Node 24、PyTorch 2.9 CPU。
+前端构建输出为 `dist` 与 `demo-dist`。Python 接口在 `python/silicondevine`，渲染器在 `src/render`，图格式与算子在 `src/core`。版本 0.7.2；本地已验证环境：Node 24、PyTorch 2.9 CPU。
+
+开发流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，平台与模型边界见 [兼容性说明](docs/COMPATIBILITY.md)，本地执行约束见 [SECURITY.md](SECURITY.md)。
+
+本次修复与验证见 [0.7.2 更改记录](CHANGELOG.md)。

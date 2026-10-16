@@ -250,11 +250,15 @@ class Application:
         self.generation += 1
         if self.process and self.process.poll() is None:
             # Windows process tree: also stops the capture worker owned by this launcher.
-            result = subprocess.run(['taskkill', '/PID', str(self.process.pid), '/T', '/F'], capture_output=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+            result = None
+            if os.name == 'nt':
+                result = subprocess.run(['taskkill', '/PID', str(self.process.pid), '/T', '/F'], capture_output=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+            if self.process.poll() is None:
+                self.process.terminate()
             try:
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                self.status.set('服务未停止，请重试。' + result.stderr.decode(errors='replace')[-120:])
+                self.status.set('服务未停止，请重试。' + (result.stderr.decode(errors='replace')[-120:] if result else ''))
                 return
         self.process = None
         self.start_button.configure(state='normal')

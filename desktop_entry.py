@@ -11,7 +11,7 @@ from urllib.request import urlopen
 import app as launcher
 
 
-def diagnose(destination, python=None, preset='MLP', source=None):
+def diagnose(destination, python=None, preset='MLP', source=None, entry=None):
     result = {'frozen':bool(getattr(sys,'frozen',False)), 'root':str(launcher.ROOT), 'ok':False}
     app = None
     window = None
@@ -33,6 +33,7 @@ def diagnose(destination, python=None, preset='MLP', source=None):
                 app.file.set(str(source))
                 app.factory.set('auto')
                 app.backend.set('auto')
+            if entry:app.entry.set(entry)
             app.start()
             process=app.process
             assert process is not None,'No model process'
@@ -41,6 +42,9 @@ def diagnose(destination, python=None, preset='MLP', source=None):
                 window.update()
                 time.sleep(.08)
             assert app.auto_opened,app.status.get()+'\n'+app.log.get('1.0','end')
+            with urlopen(app.url.split('?')[0]+'api/status',timeout=10) as response:
+                status=json.load(response)
+            assert status['ready'],json.dumps(status.get('issue') or status,ensure_ascii=False)
             with urlopen(app.url.split('?')[0]+'api/model',timeout=10) as response:
                 data=json.load(response)
             with urlopen(app.url,timeout=10) as response:
@@ -65,11 +69,12 @@ if __name__=='__main__':
     parser.add_argument('--self-test',type=Path,help='Write a local startup diagnostic report and exit')
     parser.add_argument('--python',help='Python interpreter for the diagnostic')
     parser.add_argument('--source',type=Path,help='自动导入目录或文件的启动诊断')
+    parser.add_argument('--entry',help='诊断指定的 module:Class 入口')
     parser.add_argument('--preset',default='MLP',choices=['MLP','TinyGPT','LLaMA · Transformers','SAB · 作者实现','ISAB · 作者实现','VAE · PyTorch 官方','卷积 VAE','条件 VAE','DeepSeek-V3','GLM-4.5','MiniMax-M1','动态卷积核','条件注意力'])
     args=parser.parse_args()
     launcher.enable_high_dpi()
     if args.self_test:
-        raise SystemExit(diagnose(args.self_test,args.python,args.preset,args.source))
+        raise SystemExit(diagnose(args.self_test,args.python,args.preset,args.source,args.entry))
     window=tk.Tk()
     application=launcher.Application(window)
     window.mainloop()

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE??'playwright');
-const browser=await chromium.launch({channel:'msedge',headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
+const browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||undefined,headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
 const graph=JSON.parse(await readFile('demo/public/models/mlp.sd.json','utf8'));
 const schema={entry:'network:VisionModel',label:'VisionModel',settings:{entry:'network:VisionModel',init:{outputs:2}},candidates:[{id:'network:VisionModel',name:'VisionModel',file:'D:/MyModels/network.py',line:8},{id:'network:Other',name:'Other',file:'D:/MyModels/network.py',line:20}],constructor:[{name:'width',kind:'integer',required:true},{name:'outputs',kind:'integer',required:true,value:2}],hasForward:true,inputs:[{name:'signal',kind:'tensor',required:true,parameterKind:'positional_or_keyword'},{name:'training',kind:'boolean',required:false,value:false}]};
 schema.inputs.push({name:'optional_context',kind:'tensor',required:false,parameterKind:'keyword_only'});
@@ -15,7 +15,7 @@ try{
   else state={...state,revision:state.revision+1,ready:true,error:null,issue:null,importOptions:{...schema,settings:values}};
   await route.fulfill({json:{accepted:true}});
  });
- await page.goto('http://127.0.0.1:5199/?live=1');const dialog=page.locator('#import-assistant');await page.waitForTimeout(1100);
+ await page.goto(new URL('?live=1',process.env.DEMO_URL??'http://127.0.0.1:5199/').href);const dialog=page.locator('#import-assistant');await page.waitForTimeout(1100);
  assert.equal(await dialog.isVisible(),false,'Automatic import must not open a form');
  state={...state,revision:1,ready:true,loading:false,importOptions:schema};
  await page.waitForFunction(()=>!document.body.classList.contains('awaiting-import'));await page.waitForTimeout(200);
@@ -45,5 +45,27 @@ try{
  await page.waitForFunction(()=>!document.body.classList.contains('awaiting-import'));
  await page.locator('#catalog-toggle').click();await page.locator('#import-settings').click();await page.getByRole('combobox',{name:'输入方式',exact:true}).selectOption('auto');await page.getByRole('spinbutton',{name:'width',exact:true}).fill('6');await page.getByRole('button',{name:'应用并重新捕获',exact:true}).click();await page.waitForTimeout(200);
  assert.equal(submitted.at(-1).input_mode,'auto');assert.equal(submitted.at(-1).kwargs,undefined);
+ state={...state,loading:false,error:'input 类型不匹配',issue:{code:'constructor_invalid',title:'构造参数类型不匹配',message:'width 需要整数，当前为 dict。',fields:['width'],schema:{...schema,settings:{...schema.settings,init:{width:{shape:[8]},outputs:2}},constructor:[{name:'width',kind:'integer',required:true,value:{shape:[8]}},schema.constructor[1]]}}};
+ await page.getByRole('button',{name:'修正构造参数',exact:true}).click();
+ assert.equal(await page.getByRole('spinbutton',{name:'width',exact:true}).inputValue(),'');
+ assert.equal(await page.getByRole('spinbutton',{name:'outputs',exact:true}).count(),0);
+ await page.getByRole('spinbutton',{name:'width',exact:true}).fill('6');await page.getByRole('button',{name:'应用并重新捕获',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('#import-assistant').open);
+ assert.deepEqual(submitted.at(-1).init,{width:6,outputs:2});
+ state={...state,loading:false,error:'需要修复配置',issue:{code:'constructor_failed',title:'模型构造预检未通过',message:'可恢复自动解析',schema}};
+ await page.getByRole('button',{name:'恢复自动解析',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#import-notice strong')?.textContent==='正在重新捕获');
+ assert.deepEqual(submitted.at(-1),{ignore_project_config:true,input_mode:'auto'});
+ let retries=0;
+ await page.route('**/api/retry',async route=>{retries++;await new Promise(resolve=>setTimeout(resolve,150));await route.fulfill({status:500,json:{error:'模拟保存失败，请重试。'}});});
+ await page.getByRole('button',{name:'重试',exact:true}).waitFor();
+ await page.getByRole('button',{name:'重试',exact:true}).evaluate(button=>{button.click();button.click();});
+ await page.locator('#import-notice p').filter({hasText:'模拟保存失败'}).waitFor();assert.equal(retries,1);
+ state={...state,loading:false,error:'需要 weight',issue:{code:'constructor_required',fields:['weight'],title:'仍有构造参数无法确定',message:'提供 weight 张量',schema:{...schema,settings:{entry:schema.entry,init:{}},constructor:[{name:'weight',kind:'tensor',required:true}]}}};
+ await page.getByRole('button',{name:'补充未确定信息',exact:true}).click();
+ await page.getByRole('textbox',{name:'weight · 张量尺寸',exact:true}).fill('3, 2');
+ await page.getByRole('button',{name:'应用并重新捕获',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('#import-assistant').open);
+ assert.deepEqual(submitted.at(-1).init.weight,{$tensor:{shape:[3,2],dtype:'float32',fill:'random'}});
  assert.deepEqual(errors,[]);await writeFile('.qa/import-browser-report.json',JSON.stringify({report,submitted,errors},null,2));console.log('Automatic import stays uninterrupted; recovery asks only unresolved fields; desktop/mobile validation passed');
 }finally{await browser.close();}

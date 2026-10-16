@@ -19,12 +19,14 @@ class ProjectWatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory) / 'project_model'
             shutil.copytree(ROOT / 'examples/project_model', project)
+            config = project / 'silicondevine.json'
+            config.write_text('{}')
             with socket.socket() as sock:
                 sock.bind(('127.0.0.1', 0))
                 port = sock.getsockname()[1]
             env = dict(os.environ, PYTHONPATH=str(ROOT / 'python'), PYTHONDONTWRITEBYTECODE='1', PYTHONIOENCODING='utf-8')
             with (Path(directory) / 'watch.log').open('w', encoding='utf-8') as logs:
-                proc = subprocess.Popen([sys.executable, '-m', 'silicondevine.watch', str(project), '--port', str(port), '--static-dir', str(ROOT / 'demo-dist')], env=env, stdout=logs, stderr=logs, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                proc = subprocess.Popen([sys.executable, '-m', 'silicondevine.watch', str(project), '--config', str(config), '--settings', str(Path(directory) / 'profile.json'), '--port', str(port), '--static-dir', str(ROOT / 'demo-dist')], env=env, stdout=logs, stderr=logs, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
                 def get(endpoint):
                     with urlopen(f'http://127.0.0.1:{port}/api/{endpoint}', timeout=2) as response:
                         return json.load(response)
@@ -60,7 +62,7 @@ class ProjectWatchTests(unittest.TestCase):
                 finally:
                     if os.name == 'nt':
                         subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
-                    else:
+                    if proc.poll() is None:
                         proc.terminate()
                     proc.wait(timeout=10)
 

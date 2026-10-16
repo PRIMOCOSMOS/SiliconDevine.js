@@ -234,6 +234,15 @@ def source_evidence(report, selected=None):
             for p,v in zip(ps,defaults):local[p.arg]=UNKNOWN if v is UNKNOWN else evaluate(v,env)
             for p,v in zip(fn.args.kwonlyargs,fn.args.kw_defaults):local[p.arg]=UNKNOWN if v is None else evaluate(v,env)
             run(fn.body,local)
+        # Literal child construction inside __init__ is useful when the user
+        # selects a building block directly. Unknown runtime fields stay unknown.
+        for definition in tree.body:
+            if not isinstance(definition, ast.ClassDef):continue
+            fn=next((n for n in definition.body if isinstance(n,ast.FunctionDef) and n.name=='__init__'),None)
+            if fn is None:continue
+            local=dict(env)
+            for p in [*fn.args.posonlyargs,*fn.args.args,*fn.args.kwonlyargs]:local[p.arg]=UNKNOWN
+            run(fn.body,local)
     return {'constructors':constructors,'inputs':inputs}
 
 

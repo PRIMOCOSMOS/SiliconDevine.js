@@ -2,7 +2,7 @@ import {selectExample,selectModule} from './browser-shell.mjs';
 import {writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE??'playwright');
-const browser=await chromium.launch({channel:'msedge',headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
+const browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||undefined,headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
 try{
  const page=await browser.newPage({viewport:{width:1480,height:1000}}),errors=[],report={};page.on('pageerror',e=>errors.push(e.message));
  await page.goto(process.env.DEMO_URL??'http://127.0.0.1:5195');

@@ -35,7 +35,7 @@ def application_root():
 
 def default_python():
     if not getattr(sys, 'frozen', False):
-        return str(Path(sys.executable).with_name('python.exe'))
+        return str(Path(sys.executable).with_name('python.exe')) if os.name == 'nt' else sys.executable
     candidates = [shutil.which('python.exe')]
     if os.getenv('CONDA_PREFIX'):
         candidates.append(str(Path(os.environ['CONDA_PREFIX']) / 'python.exe'))

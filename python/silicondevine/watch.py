@@ -100,15 +100,19 @@ def main():
             # Package roots ensure edits to sibling imports trigger a fresh worker.
             from .discovery import import_identity
             roots.update(import_identity(p.resolve())[1] for p in args.sources if p.is_file())
-            files = source_files(sorted(roots))
-            _, config_path = project_config(args.sources, args.config, read=False)
-            if config_path.is_file():
-                files.append(config_path)
-            if args.settings.is_file(): files.append(args.settings)
             try:
+                files = source_files(sorted(roots))
+                _, config_path = project_config(args.sources, args.config, read=False)
+                if config_path.is_file():
+                    files.append(config_path)
+                if args.settings.is_file(): files.append(args.settings)
                 stamp = (server.retry_revision,tuple((str(p), p.stat().st_mtime_ns, p.stat().st_size) for p in sorted(files)[:5000]))
-            except OSError:
+            except (OSError, ValueError) as exc:
                 # Editors may temporarily rename files during atomic saves.
+                with server.lock:
+                    server.issue = exception_issue(exc, args.sources)
+                    server.loading, server.error = False, server.issue['message']
+                last_stamp = None
                 time.sleep(.6)
                 continue
             if stamp != last_stamp:
@@ -127,16 +131,21 @@ def main():
                     result = json.loads((directory/'capture.json').read_text(encoding='utf-8'))
                     snapshot = Snapshot(directory/'tensors')
                     snapshot.manifest = result['manifest']
-                    previous = server.snapshot
-                    server.publish(result['model'], snapshot)
+                    with server.lock:
+                        if server.retry_revision != stamp[0]:
+                            shutil.rmtree(directory, ignore_errors=True)
+                            continue
+                        previous = server.snapshot
+                        server.publish(result['model'], snapshot)
                     if previous:
                         shutil.rmtree(previous.directory.parent, ignore_errors=True)
                     print(f'Updated revision {server.revision}', flush=True)
                 except Exception as exc:
                     with server.lock:
-                        server.issue=exception_issue(exc,args.sources)
-                        server.loading, server.error = False, server.issue['message']
-                        if server.issue.get('schema'): server.import_options=server.issue['schema']
+                        if server.retry_revision == stamp[0]:
+                            server.issue=exception_issue(exc,args.sources)
+                            server.loading, server.error = False, server.issue['message']
+                            if server.issue.get('schema'): server.import_options=server.issue['schema']
                     shutil.rmtree(directory, ignore_errors=True)
                     print(f'Capture failed; keeping previous graph: {exc}', file=sys.stderr, flush=True)
             time.sleep(.6)

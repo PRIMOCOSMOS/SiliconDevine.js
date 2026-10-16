@@ -1,6 +1,6 @@
 {
   "name": "silicondevine.js",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "type": "module",
   "description": "Crystal tensor visualization for PyTorch computational graphs",
   "main": "./dist/silicondevine.js",
@@ -18,17 +18,20 @@
     "NOTICE.md",
     "THIRD_PARTY_LICENSES"
   ],
+  "engines": {"node": ">=22.12.0"},
   "scripts": {
     "dev": "vite --config vite.demo.config.ts --host 127.0.0.1 --port 5180",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build && tsc -p tsconfig.lib.json && vite build --config vite.demo.config.ts",
-    "test": "node tests/core.mjs && python -m unittest discover -s tests -p test_*.py && python tests/generate_extended.py && node tests/extended.mjs && node tests/llm.mjs",
+    "test": "npm run test:core && npm run test:python && node tests/run-python.mjs tests/generate_extended.py && node tests/extended.mjs && node tests/llm.mjs",
+    "test:core": "node tests/core.mjs && node tests/live-client.mjs",
+    "test:python": "node tests/run-python.mjs",
     "examples": "python examples/export_models.py && python tests/export_llm.py && python tests/export_official.py",
-    "test:browser": "node tests/browser-v05.mjs",
+    "test:browser": "node tests/run-browser.mjs",
     "test:llm:browser": "node tests/browser-llm.mjs",
     "test:mechanism:browser": "node tests/browser-mechanism.mjs",
     "test:v04:browser": "node tests/browser-v04.mjs",
-    "test:api": "python tests/export_api.py && node tests/api-support.mjs && python tests/export_spatial.py && node tests/spatial-support.mjs"
+    "test:api": "npm run test:core && node tests/run-python.mjs tests/export_api.py && node tests/api-support.mjs && node tests/run-python.mjs tests/export_spatial.py && node tests/spatial-support.mjs"
   },
   "peerDependencies": {
     "three": ">=0.185.0 <0.186.0"
@@ -39,7 +42,8 @@
     "typescript": "5.6.3",
     "vite": "6.4.3",
     "esbuild": "^0.25.0",
-    "@fontsource-variable/tektur": "5.2.8",
-    "katex": "0.18.5"
+    "@fontsource-variable/tektur": "5.3.0",
+    "katex": "0.18.5",
+    "playwright": "1.64.1"
   }
 }

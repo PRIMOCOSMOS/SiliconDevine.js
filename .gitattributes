@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.cmd text eol=crlf
+# Upstream manifests verify the original bytes on every platform.
+examples/upstream/** -text
+*.exe binary
+*.ico binary
+*.png binary
+*.woff2 binary

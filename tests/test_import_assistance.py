@@ -153,7 +153,7 @@ class Second(nn.Module):
                 finally:
                     if process.poll() is None:
                         if os.name=='nt':subprocess.run(['taskkill','/PID',str(process.pid),'/T','/F'],capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW)
-                        else:process.terminate()
+                        if process.poll() is None:process.terminate()
                     process.wait(timeout=10)
 
 

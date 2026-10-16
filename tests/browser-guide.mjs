@@ -1,9 +1,9 @@
-import {chromium} from 'file:///C:/Users/30246/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs';
+import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
-const browser=await chromium.launch({channel:'msedge',headless:true});
+const browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||undefined,headless:true});
 try{
  const page=await browser.newPage({viewport:{width:1280,height:900}});
- await page.goto('file:///D:/Personpage/tmp/silicondevine-v07/docs/QUICKSTART.html');
+ await page.goto(new URL('../docs/QUICKSTART.html',import.meta.url).href);
  await page.getByRole('link',{name:'代码接入',exact:true}).click();
  assert.ok(page.url().endsWith('#2'));
  await page.screenshot({path:'.qa/guide-desktop.png'});

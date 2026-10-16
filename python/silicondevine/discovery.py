@@ -80,12 +80,13 @@ def scan_project(sources):
             if parts[-1] == '__init__': parts.pop()
             return '.'.join(parts), root
         return import_identity(path)
-    records, warnings, errors = {}, [], []
+    records, warnings, errors, visited = {}, [], [], set()
     roots = {identity(p)[1] for p in pending}
     while pending:
         path = pending.pop(0)
-        if str(path) in records:
+        if str(path) in visited:
             continue
+        visited.add(str(path))
         if len(records) >= 5000:
             raise ValueError('本地依赖超过 5000 个文件；请缩小项目范围。')
         name, root = identity(path)
@@ -205,6 +206,8 @@ def project_config(sources, config=None, read=True):
     settings = json.loads(path.read_text(encoding='utf-8-sig')) if read and path.is_file() else {}
     if not isinstance(settings, dict):
         raise ValueError('silicondevine.json 顶层必须是 JSON 对象。')
+    from .assistance import validate_settings
+    validate_settings(settings)
     return settings, path
 
 
@@ -236,7 +239,7 @@ def _tensor(spec):
             return {key: _tensor(value) for key, value in spec.items()}
         return _value(spec)
     shape = spec['shape']
-    if not isinstance(shape, list) or any(not isinstance(n, int) or n < 1 for n in shape):
+    if not isinstance(shape, list) or len(shape) > 16 or any(type(n) is not int or n < 1 for n in shape):
         raise ValueError('输入 shape 必须是正整数列表。')
     import math
     if math.prod(shape) > 2_000_000:
@@ -247,6 +250,8 @@ def _tensor(spec):
     if 'values' in spec:
         return torch.tensor(spec['values'], dtype=dtype).reshape(shape)
     fill = spec.get('fill', 'random')
+    if fill not in ('random', 'zeros', 'ones'):
+        raise ValueError('输入 fill 必须是 random、zeros 或 ones。')
     if fill in ('zeros', 'ones'):
         return getattr(torch, fill)(shape, dtype=dtype)
     if dtype in (torch.int64, torch.int32, torch.int16, torch.int8, torch.uint8, torch.bool):
@@ -314,6 +319,9 @@ def _inferred_inputs(model, size):
             descriptor = {'shape': ([1, 4] if module.batch_first else [4, 1]) + [module.embed_dim]}
         else:
             descriptor = {'shape': ([1, 4] if size >= 16 else [1]) + [module.in_features]}
+        parameter = next(module.parameters(), None)
+        if not isinstance(module, nn.Embedding) and parameter is not None and (parameter.is_floating_point() or parameter.is_complex()):
+            descriptor['dtype'] = str(parameter.dtype).removeprefix('torch.')
         value = _tensor(descriptor)
         if p.kind == p.KEYWORD_ONLY:
             kwargs[p.name] = value
@@ -324,12 +332,19 @@ def _inferred_inputs(model, size):
 
 
 def capture_project(sources, destination, backend='auto', entry=None, config=None, overrides=None):
+    from .project_imports import project_imports
+    report = scan_project(sources)
+    with project_imports(report):
+        return _capture_project(report, sources, destination, backend, entry, config, overrides)
+
+
+def _capture_project(report, sources, destination, backend, entry, config, overrides):
     import torch
     from .exporter import export_model
     from .live import Snapshot
     from .assistance import problem, import_schema, validate_settings
     from .automatic import source_evidence, resolve_entry, constructor_values, example_inputs
-    report = scan_project(sources)
+    from .constructor_contract import invalid_parameters, call_constructor
     if not report['modules'] and report.get('errors'):
         error=report['errors'][0]
         raise problem('syntax_error','模型源文件无法解析','请修正提示位置的代码并保存，应用会自动重试。',
@@ -380,16 +395,21 @@ def capture_project(sources, destination, backend='auto', entry=None, config=Non
     if selected.get('kind') != 'factory' and (not inspect.isclass(cls) or not issubclass(cls, torch.nn.Module)):
         raise ValueError(f'{selected["id"]} 运行时并非 torch.nn.Module。')
     settings['init'],automatic['constructor']=constructor_values(selected,cls,evidence_source,settings.get('init',{}))
-    torch.manual_seed(settings.get('seed',0))
-    init = _value(settings['init'])
+    invalid = invalid_parameters(cls, settings['init'])
+    if invalid:
+        raise problem('constructor_invalid', '构造参数类型不匹配',
+                      '；'.join(name + ' ' + reason for name, reason in invalid) + '。请修正这些字段，或恢复自动解析。',
+                      fields=[name for name, _ in invalid], schema=import_schema(selected, cls, settings=settings, report=report))
+    init = settings['init']
     missing = [p.name for p in inspect.signature(cls).parameters.values() if p.default is p.empty and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD) and p.name not in init]
     if missing:
         raise problem('constructor_required', '仍有构造参数无法确定', '已读取源码构造示例和配置默认值。需要填写：' + ', '.join(missing) + '；其余参数已处理。',
                       fields=missing,schema=import_schema(selected, cls, settings=settings, report=report))
     # Count shapes without allocating weight storage before constructing on CPU.
     try:
-        with torch.device('meta'):
-            probe = cls(**init)
+        with torch.random.fork_rng(), torch.device('meta'):
+            torch.manual_seed(settings.get('seed', 0))
+            probe = call_constructor(cls, _value(init))
         if not isinstance(probe, torch.nn.Module):
             raise ValueError('入口函数必须返回 torch.nn.Module 实例。')
         count = sum(p.numel() for p in probe.parameters())
@@ -397,14 +417,20 @@ def capture_project(sources, destination, backend='auto', entry=None, config=Non
         del probe
     except Exception as exc:
         if isinstance(exc, (ModuleNotFoundError, ImportError, FileNotFoundError)): raise
-        raise problem('constructor_failed', '模型构造预检未通过', '请检查构造参数。预检用于避免意外分配过大的模型权重。',
-                      detail=str(exc), schema=import_schema(selected, cls, settings=settings, report=report)) from exc
+        import traceback
+        meta_unsupported = 'meta' in str(exc).lower() and isinstance(exc, (RuntimeError, NotImplementedError))
+        raise problem('constructor_meta_unsupported' if meta_unsupported else 'constructor_failed',
+                      '模型构造不支持无内存预检' if meta_unsupported else '模型构造预检未通过',
+                      '构造函数需要读取张量数值，无法在 meta 设备上检查大小。请将数值计算移到 forward，或通过 Python 接口 show() 传入已构造的模型。' if meta_unsupported else '请核对构造参数及下方源码位置；也可恢复自动解析后重新选择模型。',
+                      detail=''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-10000:],
+                      schema=import_schema(selected, cls, settings=settings, report=report)) from exc
     limit = settings.get('max_parameters', 25_000_000)
     if count + buffers > limit:
         raise problem('model_budget', '模型超过当前计算预算', f'模型含 {count:,} 个参数及 {buffers:,} 个缓冲元素，当前预算 {limit:,}。可减小构造尺寸，或根据可用内存调整预算。',
                       schema=import_schema(selected, cls, settings=settings, report=report))
     torch.manual_seed(settings.get('seed', 0))
-    model = cls(**init).cpu().eval()
+    init = _value(init)
+    model = call_constructor(cls, init).cpu().eval()
     if 'original_shape' in init:
         model._silicondevine_input_shape = list(init['original_shape'])
     explicit = 'inputs' in settings or 'kwargs' in settings

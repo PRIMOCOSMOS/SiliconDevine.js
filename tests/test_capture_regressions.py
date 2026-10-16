@@ -43,7 +43,7 @@ class CaptureRegressionTests(unittest.TestCase):
             network.mkdir()
             (network / 'blocks.py').write_text('from torch import nn\nclass Block(nn.Module):\n def __init__(self,width):\n  super().__init__();self.fc=nn.Linear(width,2)\n def forward(self,x):return self.fc(x)\n')
             (network / 'model.py').write_text('from torch import nn\nfrom netspace.blocks import Block\nclass Main(nn.Module):\n def __init__(self,width):\n  super().__init__();self.block=Block(width)\n def forward(self,x):return self.block(x)\nclass Alternative(nn.Module):pass\n')
-            (root / 'train.py').write_text('import argparse\nfrom netspace.model import Main,Alternative\nparser=argparse.ArgumentParser()\nparser.add_argument("--width",default=3)\nparser.add_argument("--model",default="main")\nraise RuntimeError("training must never run")\nif opt.model=="main":\n model=Main(width=opt.width)\nelse:\n model=Alternative()\n')
+            (root / 'train.py').write_text('import argparse\nfrom netspace.model import Main,Alternative\nparser=argparse.ArgumentParser()\nparser.add_argument("--width",default=3)\nparser.add_argument("--model",default="main")\nopt=parser.parse_args()\nraise RuntimeError("training must never run")\nif opt.model=="main":\n model=Main(width=opt.width)\nelse:\n model=Alternative()\n')
             report = scan_project([network])
             self.assertEqual({c['id'] for c in report['candidates']}, {'netspace.model:Main', 'netspace.model:Alternative'})
             self.assertEqual(repository_defaults(report)['settings'], {'entry': 'netspace.model:Main', 'init': {'width': 3}})

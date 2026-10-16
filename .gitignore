@@ -5,3 +5,6 @@ __pycache__/
 *.egg-info/
 .qa/
 .backups/
+build/
+.build-exe/
+*.log

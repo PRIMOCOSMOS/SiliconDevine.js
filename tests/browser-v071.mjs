@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
-const {chromium}=await import('file:///C:/Users/30246/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');
-const browser=await chromium.launch({channel:'msedge',headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
+const {chromium}=await import('playwright');
+const browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||undefined,headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
 const report={};
 try{
  const p=await browser.newPage({viewport:{width:1520,height:1080}}),errors=[];p.on('pageerror',e=>errors.push(e.message));
@@ -17,7 +17,7 @@ try{
    await p.screenshot({path:`.qa/v071-${family}-${scope}.png`});
   }
  }
- await p.evaluate(()=>window.siliconDevine.viewer.showModule('root'));await p.waitForTimeout(900);
+ await p.evaluate(()=>{const viewer=window.siliconDevine.viewer;viewer.showStructure();viewer.showModule('root');});await p.waitForTimeout(900);
  const layout=await p.evaluate(()=>{const r=id=>{const b=document.getElementById(id).getBoundingClientRect();return {top:b.top,bottom:b.bottom,left:b.left,right:b.right};};return {active:r('active'),badge:r('structure-badge'),stage:r('stage')};});
  assert.ok(layout.badge.top>=layout.active.bottom);assert.ok(layout.stage.top>=layout.badge.bottom);report.layout=layout;
  await p.click('#inspector-toggle');await p.waitForTimeout(500);assert.ok(await p.locator('#operator-support').isVisible());await p.screenshot({path:'.qa/v071-inspector.png'});await p.click('#inspector-close');

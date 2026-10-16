@@ -1,7 +1,7 @@
 import {selectExample,selectModule} from './browser-shell.mjs';
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
-const {chromium}=await import(process.env.PLAYWRIGHT_MODULE??'playwright');const browser=await chromium.launch({channel:'msedge',headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE??'playwright');const browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||undefined,headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
 try{
  const page=await browser.newPage({viewport:{width:1520,height:1050}}),errors=[],report={};page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});await page.goto(process.env.DEMO_URL??'http://127.0.0.1:5186');
  for(const name of ['conv2d','conv3d','official_sab','official_isab','official_llama']){

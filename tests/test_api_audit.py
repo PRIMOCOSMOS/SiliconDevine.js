@@ -8,11 +8,12 @@ from silicondevine import audit_model,export_model
 class AuditTests(unittest.TestCase):
     def test_unknown_and_recognized(self):
         class Model(nn.Module):
-            def forward(self,x):return torch.log(x)+torch.abs(x)
+            def forward(self,x):return torch.lgamma(x)+torch.log(x)+torch.abs(x)
         report=audit_model(Model(),torch.ones(2,3))
         self.assertEqual(report['operators']['abs'],1)
         self.assertEqual(len(report['unresolved']),1)
-        self.assertIn('log',report['unresolved'][0]['source'])
+        self.assertEqual(report['operators']['log'],1)
+        self.assertIn('lgamma',report['unresolved'][0]['source'])
     def test_tensor_unfold_does_not_impersonate_image_unfold(self):
         class Model(nn.Module):
             def forward(self,x):return x.unfold(1,2,1)

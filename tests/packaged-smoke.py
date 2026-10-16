@@ -11,6 +11,7 @@ p=argparse.ArgumentParser()
 p.add_argument('executable',type=Path)
 p.add_argument('--preset',default='MLP')
 p.add_argument('--source',type=Path)
+p.add_argument('--entry')
 args=p.parse_args()
 exe=args.executable.resolve()
 report=Path(__file__).resolve().parents[1]/'.qa'/('packaged-'+str(time.time_ns())+'.json')
@@ -21,6 +22,7 @@ env.pop('PYTHONHOME',None)
 with tempfile.TemporaryDirectory(prefix='sd-exe-cwd-') as directory:
     command=[str(exe),'--self-test',str(report),'--preset',args.preset]
     if args.source:command += ['--source',str(args.source.resolve())]
+    if args.entry:command += ['--entry',args.entry]
     result=subprocess.run(command,
                           cwd=directory,env=env,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0),timeout=190)
 data=json.loads(report.read_text(encoding='utf-8'))
